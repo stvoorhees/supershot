@@ -248,10 +248,14 @@ function drawAnnot(a,pad){
   if(a.type==='ellipse'){ ctx.beginPath(); ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,7); ctx.stroke(); return; }
   if(a.type==='highlight'){ ctx.save(); ctx.globalAlpha=.32; ctx.fillStyle=a.color; ctx.fillRect(pad+n.x1,pad+n.y1,n.x2-n.x1,n.y2-n.y1); ctx.restore(); return; }
   if(a.type==='line'){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); return; }
-  if(a.type==='arrow'){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    const ang=Math.atan2(y2-y1,x2-x1), h=Math.max(10,a.width*3.2);
-    ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(ang-0.5),y2-h*Math.sin(ang-0.5));
-    ctx.lineTo(x2-h*Math.cos(ang+0.5),y2-h*Math.sin(ang+0.5)); ctx.closePath(); ctx.fill(); return; }
+  if(a.type==='arrow'){ const ang=Math.atan2(y2-y1,x2-x1), h=Math.max(12,a.width*3.4);
+    // stop the shaft at the arrowhead's base so the (round-capped) line never pokes past the tip
+    const bx=x2-Math.cos(ang)*h*0.9, by=y2-Math.sin(ang)*h*0.9;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-h*Math.cos(ang-0.42),y2-h*Math.sin(ang-0.42));
+    ctx.lineTo(x2-h*Math.cos(ang+0.42),y2-h*Math.sin(ang+0.42));
+    ctx.closePath(); ctx.fill(); return; }
   if(a.type==='text'){ const fs=Math.max(14,a.width*5); ctx.font=`600 ${fs}px ${getComputedStyle(document.body).fontFamily}`;
     ctx.textBaseline='top'; ctx.fillStyle=a.color; ctx.fillText(a.text||'',x1,y1); return; }
 }
