@@ -35,7 +35,8 @@
   .app{height:calc(100% - 46px);display:grid;grid-template-columns:1fr 300px}
 
   /* ---------- stage ---------- */
-  .stage{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--stage)}
+  .stage{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--stage);
+    padding:74px 40px 28px}   /* top room reserves the floating toolbar so tall shots don't overlap it */
   .stage::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(90% 70% at 50% 30%, rgba(255,255,255,.03), transparent 70%)}
   .canvas-wrap{position:relative;display:flex;filter:drop-shadow(0 24px 50px rgba(0,0,0,.45))}
@@ -277,7 +278,7 @@ function render(){
 // (CSS max-width/max-height would clamp each axis independently and distort tall shots)
 function fit(){
   if(!img) return;
-  const w=Math.max(120, stage.clientWidth-80), h=Math.max(120, stage.clientHeight-112);
+  const w=Math.max(120, stage.clientWidth-80), h=Math.max(120, stage.clientHeight-102); // matches .stage padding
   const s=Math.min(w/c.width, h/c.height, 1);
   c.style.width=(c.width*s)+'px'; c.style.height=(c.height*s)+'px';
 }
