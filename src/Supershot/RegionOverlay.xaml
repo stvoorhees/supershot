@@ -1,0 +1,17 @@
+<Window x:Class="Supershot.RegionOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="#01000000"
+        ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
+        Cursor="Cross">
+  <Canvas x:Name="Root">
+    <Rectangle x:Name="Dim" Fill="#66000000" />
+    <Rectangle x:Name="Selection" Stroke="#7C8CFF" StrokeThickness="1.5"
+               Fill="#207C8CFF" Visibility="Collapsed" />
+    <Border x:Name="Hint" Background="#CC121519" CornerRadius="8" Padding="12,7"
+            BorderBrush="#33FFFFFF" BorderThickness="1">
+      <TextBlock Text="Drag to select a region  ·  Esc to cancel"
+                 Foreground="#E6E9F0" FontSize="13" FontFamily="Segoe UI" />
+    </Border>
+  </Canvas>
+</Window>
