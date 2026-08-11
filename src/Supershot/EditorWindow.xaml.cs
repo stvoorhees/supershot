@@ -19,6 +19,8 @@ public partial class EditorWindow : Window
     public EditorWindow()
     {
         InitializeComponent();
+        var ico = Path.Combine(AppContext.BaseDirectory, "Supershot.ico");
+        if (File.Exists(ico)) { try { Icon = BitmapFrame.Create(new Uri(ico)); } catch { } }
         Loaded += async (_, _) => await InitAsync();
     }
 

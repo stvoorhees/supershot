@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Windows;
 using WinForms = System.Windows.Forms;
 
@@ -68,7 +69,10 @@ public partial class App : System.Windows.Application
 
     private static Icon TrayIcon()
     {
-        // Simple generated gradient square so we don't ship a binary .ico.
+        var ico = Path.Combine(AppContext.BaseDirectory, "Supershot.ico");
+        if (File.Exists(ico)) { try { return new Icon(ico, 32, 32); } catch { /* fall through */ } }
+
+        // Fallback: generated gradient square if the icon asset is missing.
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))
         using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(

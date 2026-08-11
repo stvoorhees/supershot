@@ -11,6 +11,7 @@
     <RootNamespace>Supershot</RootNamespace>
     <AssemblyName>Supershot</AssemblyName>
     <Version>0.1.0</Version>
+    <ApplicationIcon>..\..\assets\Supershot.ico</ApplicationIcon>
     <!-- DPI awareness is set in app.manifest (WPF-primary app); silence the WinForms-oriented nudge. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
@@ -22,6 +23,7 @@
   <!-- Ship the web editor next to the exe and load it via a WebView2 virtual host. -->
   <ItemGroup>
     <Content Include="..\..\editor\**\*.*" Link="editor\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\Supershot.ico" Link="Supershot.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
