@@ -118,7 +118,13 @@ public partial class EditorWindow : Window
     private void SavePng(string dataUrl)
     {
         if (string.IsNullOrEmpty(dataUrl)) return;
-        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = "supershot.png", Filter = "PNG image|*.png", DefaultExt = ".png" };
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = $"Supershot {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png", // unique by default
+            Filter = "PNG image|*.png",
+            DefaultExt = ".png",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+        };
         if (dlg.ShowDialog() == true) File.WriteAllBytes(dlg.FileName, Decode(dataUrl));
     }
 
