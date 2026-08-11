@@ -38,9 +38,8 @@
   .stage{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--stage)}
   .stage::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(90% 70% at 50% 30%, rgba(255,255,255,.03), transparent 70%)}
-  .canvas-wrap{position:relative;max-width:calc(100% - 80px);max-height:calc(100% - 110px);display:flex;
-    filter:drop-shadow(0 24px 50px rgba(0,0,0,.45))}
-  canvas{max-width:100%;max-height:100%;border-radius:4px;display:block}
+  .canvas-wrap{position:relative;display:flex;filter:drop-shadow(0 24px 50px rgba(0,0,0,.45))}
+  canvas{border-radius:4px;display:block}
   #c.tool{cursor:crosshair}
 
   /* floating markup toolbar */
@@ -272,7 +271,17 @@ function render(){
   (current?annots.concat(current):annots).forEach(a=>drawAnnot(a,pad)); ctx.restore();
   if(selected){ const n=norm(selected); ctx.save(); ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
     ctx.strokeRect(pad+n.x1-4,pad+n.y1-4,(n.x2-n.x1)+8,(n.y2-n.y1)+8); ctx.restore(); }
+  fit();
 }
+// scale the on-screen canvas to fit the stage while PRESERVING aspect ratio
+// (CSS max-width/max-height would clamp each axis independently and distort tall shots)
+function fit(){
+  if(!img) return;
+  const w=Math.max(120, stage.clientWidth-80), h=Math.max(120, stage.clientHeight-112);
+  const s=Math.min(w/c.width, h/c.height, 1);
+  c.style.width=(c.width*s)+'px'; c.style.height=(c.height*s)+'px';
+}
+window.addEventListener('resize', fit);
 
 /* ---------- interaction ---------- */
 function hit(a,x,y){ const n=norm(a); const m=8+a.width;
