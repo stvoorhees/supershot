@@ -28,12 +28,15 @@ public sealed class HotKeyWindow : IDisposable
             WindowStyle = 0,
         });
         _src.AddHook(WndProc);
+        Rebind(modifiers, virtualKey);
+    }
 
+    /// <summary>Swap the registered combo (used when the user changes the hotkey in settings).</summary>
+    public void Rebind(uint modifiers, uint virtualKey)
+    {
+        UnregisterHotKey(_src.Handle, HotKeyId);
         if (!RegisterHotKey(_src.Handle, HotKeyId, modifiers, virtualKey))
-        {
-            // Non-fatal: another app may own the combo. The tray menu still triggers capture.
             System.Diagnostics.Debug.WriteLine("Supershot: hotkey registration failed (combo in use?).");
-        }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

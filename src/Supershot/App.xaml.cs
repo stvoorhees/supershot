@@ -11,9 +11,7 @@ namespace Supershot;
 /// </summary>
 public partial class App : System.Windows.Application
 {
-    // Default capture hotkey: Ctrl + Shift + 2.  (MOD_CONTROL | MOD_SHIFT, VK '2')
-    private const uint ModCtrl = 0x0002, ModShift = 0x0004;
-    private const uint VkTwo = 0x32;
+    public enum CaptureMode { Region, Window, FullScreen }
 
     private WinForms.NotifyIcon? _tray;
     private HotKeyWindow? _hotkey;
@@ -22,36 +20,49 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        AppSettings.Load();
 
-        _tray = new WinForms.NotifyIcon
-        {
-            Icon = TrayIcon(),
-            Visible = true,
-            Text = "Supershot — Ctrl+Shift+2 to capture",
-        };
+        _tray = new WinForms.NotifyIcon { Icon = TrayIcon(), Visible = true, Text = "Supershot" };
         var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add("Capture region\tCtrl+Shift+2", null, (_, _) => StartCapture());
-        menu.Items.Add("Open editor", null, (_, _) => ShowEditor(null));
+        menu.Items.Add("Capture region", null, (_, _) => StartCapture(CaptureMode.Region));
+        menu.Items.Add("Capture window", null, (_, _) => StartCapture(CaptureMode.Window));
+        menu.Items.Add("Capture full screen", null, (_, _) => StartCapture(CaptureMode.FullScreen));
         menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add("Open editor", null, (_, _) => ShowEditor(null));
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         _tray.ContextMenuStrip = menu;
-        _tray.DoubleClick += (_, _) => StartCapture();
+        _tray.DoubleClick += (_, _) => StartCapture(CaptureMode.Region);
 
-        _hotkey = new HotKeyWindow(ModCtrl | ModShift, VkTwo);
-        _hotkey.Pressed += StartCapture;
+        var (mods, vk) = AppSettings.ParseHotkey(AppSettings.Data.Hotkey);
+        _hotkey = new HotKeyWindow(mods, vk);
+        _hotkey.Pressed += () => StartCapture(CaptureMode.Region);
+        AppSettings.HotkeyChanged += () =>
+        {
+            var (m, k) = AppSettings.ParseHotkey(AppSettings.Data.Hotkey);
+            _hotkey?.Rebind(m, k);
+        };
     }
 
-    /// <summary>Dim the screen, let the user drag a region, capture it, open the editor.</summary>
-    private void StartCapture()
+    /// <summary>Capture (region / window / full screen), then open the editor.</summary>
+    private void StartCapture(CaptureMode mode)
     {
-        // If the editor is up, hide it so it isn't part of the shot.
-        _editor?.Hide();
+        _editor?.Hide(); // so the editor isn't part of the shot
 
-        var rect = RegionOverlay.SelectRegion();
+        System.Windows.Int32Rect? rect = mode switch
+        {
+            CaptureMode.Window => RegionOverlay.SelectWindow(),
+            CaptureMode.FullScreen => MonitorUnderCursor(),
+            _ => RegionOverlay.SelectRegion(),
+        };
         if (rect is null) return;
 
-        var dataUrl = ScreenCapture.CaptureDataUrl(rect.Value);
-        ShowEditor(dataUrl);
+        ShowEditor(ScreenCapture.CaptureDataUrl(rect.Value));
+    }
+
+    private static System.Windows.Int32Rect MonitorUnderCursor()
+    {
+        var b = WinForms.Screen.FromPoint(WinForms.Cursor.Position).Bounds;
+        return new System.Windows.Int32Rect(b.X, b.Y, b.Width, b.Height);
     }
 
     private void ShowEditor(string? dataUrl)
