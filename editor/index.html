@@ -41,7 +41,7 @@
   canvas{border-radius:4px;display:block}
   #c.tool{cursor:crosshair}
 
-  .toolbar{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;padding:5px;border-radius:14px;
+  .toolbar{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:3px;padding:5px;border-radius:14px;
     background:rgba(36,36,42,.72);border:1px solid var(--line-2);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);box-shadow:0 12px 34px rgba(0,0,0,.4)}
   .tool-btn{width:34px;height:34px;border:0;background:transparent;color:var(--ink-2);border-radius:9px;cursor:pointer;display:grid;place-items:center;transition:.12s}
   .tool-btn:hover{background:rgba(255,255,255,.08);color:var(--ink)}
@@ -50,7 +50,7 @@
   .tb-sep{width:1px;height:22px;background:var(--line-2);margin:0 3px}
   .swatch-mini{width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.4);cursor:pointer}
 
-  .zoombar{position:absolute;left:16px;bottom:16px;display:flex;align-items:center;gap:1px;padding:4px;border-radius:11px;
+  .zoombar{position:absolute;left:16px;bottom:16px;z-index:20;display:flex;align-items:center;gap:1px;padding:4px;border-radius:11px;
     background:rgba(36,36,42,.72);border:1px solid var(--line-2);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);box-shadow:0 8px 22px rgba(0,0,0,.35)}
   .zoombar button{border:0;background:transparent;color:var(--ink-2);width:28px;height:26px;border-radius:7px;cursor:pointer;font-size:15px;font-family:var(--sans)}
   .zoombar button:hover{background:rgba(255,255,255,.08);color:var(--ink)}
@@ -316,7 +316,7 @@ function drawAnnot(a,pad,bar){
   ctx.strokeStyle=a.color; ctx.fillStyle=a.color; ctx.lineWidth=a.width; ctx.lineCap='round'; ctx.lineJoin='round';
   if(a.type==='blur'){ ctx.save(); roundRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1,4); ctx.clip();
     ctx.filter=`blur(${Math.max(5,a.width*2)}px)`; ctx.drawImage(img,pad,oy); ctx.filter='none'; ctx.restore(); return; }
-  if(a.type==='box'){ ctx.strokeRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1); return; }
+  if(a.type==='box'){ const R=Math.round; ctx.strokeRect(R(pad+n.x1),R(oy+n.y1),R(n.x2-n.x1),R(n.y2-n.y1)); return; }
   if(a.type==='ellipse'){ ctx.beginPath(); ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,7); ctx.stroke(); return; }
   if(a.type==='highlight'){ ctx.save(); ctx.globalAlpha=.32; ctx.fillStyle=a.color; ctx.fillRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1); ctx.restore(); return; }
   if(a.type==='line'){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); return; }
@@ -397,7 +397,7 @@ const sPx=()=>c.width/Math.max(1,c.clientWidth||c.width);  // image px per 1 scr
 
 /* ---------- even-spacing detection (Figma-style equal gaps) ---------- */
 function spacingSnap(bb,self){
-  const th=8*sPx(); let sdx=0,sdy=0; const marks=[];
+  const th=11*sPx(); let sdx=0,sdy=0; const marks=[];
   const others=annots.filter(a=>a!==self).map(bboxFor);
   const L=others.filter(o=>o.r<=bb.cx).sort((a,b)=>b.r-a.r)[0], R=others.filter(o=>o.l>=bb.cx).sort((a,b)=>a.l-b.l)[0];
   if(L&&R){ const target=(L.r+R.l)/2, d=target-bb.cx;   // equal gaps left/right (width cancels)
@@ -409,10 +409,17 @@ function spacingSnap(bb,self){
       marks.push({axis:'y',x,y1:T.b,y2:bb.t+d},{axis:'y',x,y1:bb.b+d,y2:D.t}); } }
   return {sdx,sdy,marks};
 }
-function drawSpacing(pad,bar){ if(!spacingMarks.length)return; const oy=pad+bar, tick=6*sPx(); ctx.save(); ctx.strokeStyle='#ff375f'; ctx.lineWidth=sPx();
+function drawSpacing(pad,bar){ if(!spacingMarks.length)return; const oy=pad+bar, u=sPx(), tick=6*u, gap=2.5*u;
+  ctx.save(); ctx.strokeStyle='#ff375f'; ctx.lineWidth=Math.max(1.4,2*u); ctx.lineCap='butt';
   spacingMarks.forEach(m=>{ ctx.beginPath();
-    if(m.axis==='x'){ const y=oy+m.y; ctx.moveTo(pad+m.x1,y);ctx.lineTo(pad+m.x2,y); ctx.moveTo(pad+m.x1,y-tick);ctx.lineTo(pad+m.x1,y+tick); ctx.moveTo(pad+m.x2,y-tick);ctx.lineTo(pad+m.x2,y+tick); }
-    else { const x=pad+m.x; ctx.moveTo(x,oy+m.y1);ctx.lineTo(x,oy+m.y2); ctx.moveTo(x-tick,oy+m.y1);ctx.lineTo(x+tick,oy+m.y1); ctx.moveTo(x-tick,oy+m.y2);ctx.lineTo(x+tick,oy+m.y2); }
+    if(m.axis==='x'){ const y=oy+m.y, a=pad+m.x1, b=pad+m.x2, mid=(a+b)/2;
+      ctx.moveTo(a,y);ctx.lineTo(b,y);                                   // connector
+      ctx.moveTo(a,y-tick);ctx.lineTo(a,y+tick); ctx.moveTo(b,y-tick);ctx.lineTo(b,y+tick); // end caps
+      ctx.moveTo(mid-gap,y-tick);ctx.lineTo(mid-gap,y+tick); ctx.moveTo(mid+gap,y-tick);ctx.lineTo(mid+gap,y+tick); } // "=" equal marks
+    else { const x=pad+m.x, a=oy+m.y1, b=oy+m.y2, mid=(a+b)/2;
+      ctx.moveTo(x,a);ctx.lineTo(x,b);
+      ctx.moveTo(x-tick,a);ctx.lineTo(x+tick,a); ctx.moveTo(x-tick,b);ctx.lineTo(x+tick,b);
+      ctx.moveTo(x-tick,mid-gap);ctx.lineTo(x+tick,mid-gap); ctx.moveTo(x-tick,mid+gap);ctx.lineTo(x+tick,mid+gap); }
     ctx.stroke(); }); ctx.restore(); }
 
 /* ---------- resize handles ---------- */
@@ -425,6 +432,7 @@ function handlesFor(a){
   return out;
 }
 function resizeAnnot(a,id,px,py){
+  px=Math.round(px); py=Math.round(py); // integer image coords -> both edges land the same, no thickness shimmer
   if(id==='p1'){ a.x1=px; a.y1=py; return; } if(id==='p2'){ a.x2=px; a.y2=py; return; }
   if(id.includes('w')) a.x1=px; if(id.includes('e')) a.x2=px;
   if(id.includes('n')) a.y1=py; if(id.includes('s')) a.y2=py;
