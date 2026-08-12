@@ -218,6 +218,7 @@ const state = { bgType:'gradient', grad:2, solid:'#1f2430', pad:64, rad:14, shad
                 frame:'none', tool:'select', color:'#ff453a', width:4 };
 let img=null, bgImg=null;
 let annots=[], current=null, selected=null, dragMode=null, dragStart=null, dragOrig=null, guides=[];
+let resizeH=null, spacingMarks=[];
 let zoom=1, panX=0, panY=0, panMode=false, panStart=null;
 let undoStack=[], redoStack=[];
 const settings = { autoCopy:false, hotkey:'ctrl+shift+2', saveFolder:'' };
@@ -338,10 +339,14 @@ function render(){
   ctx.save(); roundRect(pad,pad,img.width,img.height+bar,r); ctx.clip();
   if(bar>0) drawFrameChrome(pad,bar);
   ctx.drawImage(img,pad,pad+bar);
-  (current?annots.concat(current):annots).forEach(a=>drawAnnot(a,pad,bar)); drawGuides(pad,bar); ctx.restore();
-  if(selected){ const n=norm(selected), oy=pad+bar; ctx.save(); ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  (current?annots.concat(current):annots).forEach(a=>drawAnnot(a,pad,bar)); drawGuides(pad,bar); drawSpacing(pad,bar); ctx.restore();
+  if(selected){ const n=norm(selected), oy=pad+bar; ctx.save(); ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
     if(selected.type==='step'){ const rad=Math.max(13,selected.width*3.2); ctx.strokeRect(pad+selected.x1-rad-4,oy+selected.y1-rad-4,rad*2+8,rad*2+8); }
-    else ctx.strokeRect(pad+n.x1-4,oy+n.y1-4,(n.x2-n.x1)+8,(n.y2-n.y1)+8); ctx.restore(); }
+    else ctx.strokeRect(pad+n.x1-4,oy+n.y1-4,(n.x2-n.x1)+8,(n.y2-n.y1)+8);
+    ctx.setLineDash([]); const hsz=Math.max(6,8*sPx());
+    handlesFor(selected).forEach(h=>{ ctx.fillStyle='#fff'; ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.rect(pad+h.x-hsz/2, oy+h.y-hsz/2, hsz, hsz); ctx.fill(); ctx.stroke(); });
+    ctx.restore(); }
   applyDisplay();
 }
 function baseFit(){ const w=Math.max(120,stage.clientWidth-80), h=Math.max(120,stage.clientHeight-102); return Math.min(w/c.width,h/c.height,1); }
@@ -388,11 +393,60 @@ function snapDrag(bb,self){
 function drawGuides(pad,bar){ if(!guides.length)return; const oy=pad+bar; ctx.save(); ctx.strokeStyle='#ff375f';
   ctx.lineWidth=c.width/Math.max(1,c.clientWidth||c.width); ctx.setLineDash([]);
   guides.forEach(g=>{ ctx.beginPath(); if(g.axis==='x'){ ctx.moveTo(pad+g.pos,oy); ctx.lineTo(pad+g.pos,oy+img.height); } else { ctx.moveTo(pad,oy+g.pos); ctx.lineTo(pad+img.width,oy+g.pos); } ctx.stroke(); }); ctx.restore(); }
+const sPx=()=>c.width/Math.max(1,c.clientWidth||c.width);  // image px per 1 screen px (scale-aware)
+
+/* ---------- even-spacing detection (Figma-style equal gaps) ---------- */
+function spacingSnap(bb,self){
+  const th=8*sPx(); let sdx=0,sdy=0; const marks=[];
+  const others=annots.filter(a=>a!==self).map(bboxFor);
+  const L=others.filter(o=>o.r<=bb.cx).sort((a,b)=>b.r-a.r)[0], R=others.filter(o=>o.l>=bb.cx).sort((a,b)=>a.l-b.l)[0];
+  if(L&&R){ const target=(L.r+R.l)/2, d=target-bb.cx;   // equal gaps left/right (width cancels)
+    if(Math.abs(d)<th){ sdx=d; const y=(Math.max(L.t,bb.t,R.t)+Math.min(L.b,bb.b,R.b))/2;
+      marks.push({axis:'x',y,x1:L.r,x2:bb.l+d},{axis:'x',y,x1:bb.r+d,x2:R.l}); } }
+  const T=others.filter(o=>o.b<=bb.cy).sort((a,b)=>b.b-a.b)[0], D=others.filter(o=>o.t>=bb.cy).sort((a,b)=>a.t-b.t)[0];
+  if(T&&D){ const target=(T.b+D.t)/2, d=target-bb.cy;
+    if(Math.abs(d)<th){ sdy=d; const x=(Math.max(T.l,bb.l,D.l)+Math.min(T.r,bb.r,D.r))/2;
+      marks.push({axis:'y',x,y1:T.b,y2:bb.t+d},{axis:'y',x,y1:bb.b+d,y2:D.t}); } }
+  return {sdx,sdy,marks};
+}
+function drawSpacing(pad,bar){ if(!spacingMarks.length)return; const oy=pad+bar, tick=6*sPx(); ctx.save(); ctx.strokeStyle='#ff375f'; ctx.lineWidth=sPx();
+  spacingMarks.forEach(m=>{ ctx.beginPath();
+    if(m.axis==='x'){ const y=oy+m.y; ctx.moveTo(pad+m.x1,y);ctx.lineTo(pad+m.x2,y); ctx.moveTo(pad+m.x1,y-tick);ctx.lineTo(pad+m.x1,y+tick); ctx.moveTo(pad+m.x2,y-tick);ctx.lineTo(pad+m.x2,y+tick); }
+    else { const x=pad+m.x; ctx.moveTo(x,oy+m.y1);ctx.lineTo(x,oy+m.y2); ctx.moveTo(x-tick,oy+m.y1);ctx.lineTo(x+tick,oy+m.y1); ctx.moveTo(x-tick,oy+m.y2);ctx.lineTo(x+tick,oy+m.y2); }
+    ctx.stroke(); }); ctx.restore(); }
+
+/* ---------- resize handles ---------- */
+function handlesFor(a){
+  if(a.type==='arrow'||a.type==='line') return [{id:'p1',x:a.x1,y:a.y1},{id:'p2',x:a.x2,y:a.y2}];
+  if(a.type==='step'||a.type==='text') return [];
+  const n=norm(a), xs=[n.x1,(n.x1+n.x2)/2,n.x2], ys=[n.y1,(n.y1+n.y2)/2,n.y2];
+  const ids=[['nw','n','ne'],['w',null,'e'],['sw','s','se']], out=[];
+  for(let r=0;r<3;r++)for(let col=0;col<3;col++){ const id=ids[r][col]; if(id) out.push({id,x:xs[col],y:ys[r]}); }
+  return out;
+}
+function resizeAnnot(a,id,px,py){
+  if(id==='p1'){ a.x1=px; a.y1=py; return; } if(id==='p2'){ a.x2=px; a.y2=py; return; }
+  if(id.includes('w')) a.x1=px; if(id.includes('e')) a.x2=px;
+  if(id.includes('n')) a.y1=py; if(id.includes('s')) a.y2=py;
+}
+function pointSnap(px,py,self){ const th=8*sPx(); const xs=[img.width/2,0,img.width], ys=[img.height/2,0,img.height];
+  annots.forEach(a=>{ if(a===self)return; const o=bboxFor(a); xs.push(o.cx,o.l,o.r); ys.push(o.cy,o.t,o.b); });
+  let gx=null,bx=th; xs.forEach(t=>{ const d=Math.abs(t-px); if(d<bx){bx=d;px=t;gx=t;} });
+  let gy=null,by=th; ys.forEach(t=>{ const d=Math.abs(t-py); if(d<by){by=d;py=t;gy=t;} });
+  const g=[]; if(gx!=null)g.push({axis:'x',pos:gx}); if(gy!=null)g.push({axis:'y',pos:gy});
+  return {x:px,y:py,guides:g};
+}
+function hitHandle(a,x,y){ const tol=9*sPx(); return handlesFor(a).find(h=>Math.abs(h.x-x)<tol&&Math.abs(h.y-y)<tol)||null; }
 
 c.addEventListener('mousedown', e=>{
   if(!img)return; const p=toImage(e);
   if(panMode||e.button===1){ dragMode='pan'; panStart={x:e.clientX,y:e.clientY,px:panX,py:panY}; e.preventDefault(); return; }
-  if(state.tool==='select'){ selected=[...annots].reverse().find(a=>hit(a,p.x,p.y))||null;
+  if(state.tool==='select'){
+    // grab a resize handle of the already-selected shape first
+    if(selected){ const h=hitHandle(selected,p.x,p.y);
+      if(h){ pushUndo(); if(selected.type!=='arrow'&&selected.type!=='line'){ const n=norm(selected); selected.x1=n.x1;selected.y1=n.y1;selected.x2=n.x2;selected.y2=n.y2; }
+        dragMode='resize'; resizeH=h.id; render(); return; } }
+    selected=[...annots].reverse().find(a=>hit(a,p.x,p.y))||null;
     if(selected){ pushUndo(); dragMode='move'; dragStart={x:p.x,y:p.y}; dragOrig={x1:selected.x1,y1:selected.y1,x2:selected.x2,y2:selected.y2}; if(selected.color)$('markColor').value=selected.color; }
     else { dragMode='pan'; panStart={x:e.clientX,y:e.clientY,px:panX,py:panY}; }  // drag empty area to pan
     render(); return; }
@@ -403,14 +457,20 @@ c.addEventListener('mousedown', e=>{
 window.addEventListener('mousemove', e=>{
   if(dragMode==='pan'&&panStart){ panX=panStart.px+(e.clientX-panStart.x); panY=panStart.py+(e.clientY-panStart.y); applyDisplay(); return; }
   if(current){ const p=toImage(e); current.x2=p.x; current.y2=p.y; render(); }
+  else if(dragMode==='resize'&&selected){ const p=toImage(e), s=pointSnap(p.x,p.y,selected);
+    resizeAnnot(selected,resizeH,s.x,s.y); guides=s.guides; render(); }
   else if(dragMode==='move'&&selected){ const p=toImage(e), rdx=p.x-dragStart.x, rdy=p.y-dragStart.y;
     const bb=bboxFor(Object.assign({},selected,{x1:dragOrig.x1+rdx,y1:dragOrig.y1+rdy,x2:dragOrig.x2+rdx,y2:dragOrig.y2+rdy}));
-    const sn=snapDrag(bb,selected); moveTo(selected,dragOrig,rdx+sn.sdx,rdy+sn.sdy); guides=sn.guides; render(); }
+    const al=snapDrag(bb,selected), sp=spacingSnap(bb,selected);
+    let dx=rdx,dy=rdy,g=[],marks=[];
+    if(sp.sdx){ dx+=sp.sdx; marks=marks.concat(sp.marks.filter(m=>m.axis==='x')); } else { dx+=al.sdx; const gg=al.guides.find(x=>x.axis==='x'); if(gg)g.push(gg); }
+    if(sp.sdy){ dy+=sp.sdy; marks=marks.concat(sp.marks.filter(m=>m.axis==='y')); } else { dy+=al.sdy; const gg=al.guides.find(x=>x.axis==='y'); if(gg)g.push(gg); }
+    moveTo(selected,dragOrig,dx,dy); guides=g; spacingMarks=marks; render(); }
 });
 window.addEventListener('mouseup', ()=>{
   if(current){ const n=norm(current); if((n.x2-n.x1)>3||(n.y2-n.y1)>3){ pushUndo(); annots.push(current); } current=null; render(); }
-  if(guides.length){ guides=[]; render(); }
-  dragMode=null; panStart=null;
+  if(guides.length||spacingMarks.length){ guides=[]; spacingMarks=[]; render(); }
+  dragMode=null; panStart=null; resizeH=null;
 });
 // zoom: Ctrl/Cmd + wheel (pinch on trackpad), centered
 stage.addEventListener('wheel', e=>{ if(!img)return; if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(zoom*(e.deltaY<0?1.12:0.89)); } }, {passive:false});
@@ -451,7 +511,7 @@ document.addEventListener('paste',e=>{ const it=[...(e.clipboardData?.items||[])
 ['dragover','drop'].forEach(ev=>stage.addEventListener(ev,e=>e.preventDefault()));
 stage.addEventListener('drop',e=>{ const f=[...(e.dataTransfer?.files||[])].find(x=>x.type.startsWith('image/')); if(f)loadFromFile(f); });
 
-function exportPng(){ const keep=selected, kg=guides; selected=null; guides=[]; render(); const url=c.toDataURL('image/png'); selected=keep; guides=kg; render(); return url; }
+function exportPng(){ const keep=selected, kg=guides, ks=spacingMarks; selected=null; guides=[]; spacingMarks=[]; render(); const url=c.toDataURL('image/png'); selected=keep; guides=kg; spacingMarks=ks; render(); return url; }
 function fileName(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `Supershot ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}.png`; }
 
 if(HOST){
