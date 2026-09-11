@@ -12,3 +12,9 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Packaged artifacts and browser verification
+artifacts/
+node_modules/
+test-results/
+playwright-report/

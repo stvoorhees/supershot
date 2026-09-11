@@ -4,7 +4,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:wv="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Supershot" Width="1180" Height="760" MinWidth="760" MinHeight="520"
-        WindowStyle="None" WindowStartupLocation="CenterScreen" Background="#0a0b0d">
+        WindowStyle="None" WindowStartupLocation="CenterScreen" Background="#f7f7f9">
   <shell:WindowChrome.WindowChrome>
     <!-- frameless but still resizable/snappable; drag is handled from the web title bar -->
     <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />

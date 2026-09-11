@@ -17,6 +17,7 @@ public sealed class HotKeyWindow : IDisposable
     private readonly HwndSource _src;
 
     public event Action? Pressed;
+    public bool IsRegistered { get; private set; }
 
     public HotKeyWindow(uint modifiers, uint virtualKey)
     {
@@ -35,7 +36,8 @@ public sealed class HotKeyWindow : IDisposable
     public void Rebind(uint modifiers, uint virtualKey)
     {
         UnregisterHotKey(_src.Handle, HotKeyId);
-        if (!RegisterHotKey(_src.Handle, HotKeyId, modifiers, virtualKey))
+        IsRegistered = RegisterHotKey(_src.Handle, HotKeyId, modifiers | 0x4000, virtualKey); // MOD_NOREPEAT
+        if (!IsRegistered)
             System.Diagnostics.Debug.WriteLine("Supershot: hotkey registration failed (combo in use?).");
     }
 

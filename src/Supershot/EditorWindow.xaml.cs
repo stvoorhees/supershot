@@ -15,18 +15,28 @@ public partial class EditorWindow : Window
 {
     private bool _ready;
     private string? _pending;
+    private object? _pointer;
+    public bool HasImage { get; private set; }
+    public bool HasUnsavedChanges { get; private set; }
+    private UpdateService Updates => ((App)System.Windows.Application.Current).Updates;
 
     public EditorWindow()
     {
         InitializeComponent();
         var ico = Path.Combine(AppContext.BaseDirectory, "Supershot.ico");
         if (File.Exists(ico)) { try { Icon = BitmapFrame.Create(new Uri(ico)); } catch { } }
-        Loaded += async (_, _) => await InitAsync();
+        Loaded += async (_, _) =>
+        {
+            try { await InitAsync(); }
+            catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); System.Windows.MessageBox.Show("The editor could not start. Install the Microsoft Edge WebView2 Runtime and reopen Supershot.", "Supershot"); }
+        };
     }
 
     private async Task InitAsync()
     {
-        await Web.EnsureCoreWebView2Async();
+        var userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SupershotData", "WebView2");
+        var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userData);
+        await Web.EnsureCoreWebView2Async(environment);
         var core = Web.CoreWebView2;
 
         // Serve the bundled editor from a virtual https origin (a secure context, so
@@ -39,61 +49,101 @@ public partial class EditorWindow : Window
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.AreDevToolsEnabled = false;
 
+        core.NavigationStarting += (_, e) => { if (e.Uri != "https://supershot.editor/index.html") e.Cancel = true; };
+        core.NewWindowRequested += (_, e) => e.Handled = true;
         core.WebMessageReceived += OnWebMessage;
+        Updates.Changed += SendUpdate;
         core.Navigate("https://supershot.editor/index.html");
     }
 
     /// <summary>Queue an image (data URL); delivered once the page reports ready.</summary>
-    public void SetPendingImage(string dataUrl)
+    public void SetPendingImage(string dataUrl, object? pointer = null)
     {
-        _pending = dataUrl;
+        _pending = dataUrl; _pointer = pointer; HasImage = true; HasUnsavedChanges = true;
         if (_ready) PostImage(dataUrl);
     }
 
     private void PostImage(string dataUrl)
     {
-        var msg = JsonSerializer.Serialize(new { type = "image", data = dataUrl });
+        var msg = JsonSerializer.Serialize(new { type = "image", data = dataUrl, cursor = _pointer });
         Web.CoreWebView2.PostWebMessageAsJson(msg);
     }
 
-    private void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    private async void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
+        if (e.Source != "https://supershot.editor/index.html") return;
         JsonElement root;
         try { using var doc = JsonDocument.Parse(e.WebMessageAsJson); root = doc.RootElement.Clone(); }
         catch { return; }
 
+        if (root.ValueKind != JsonValueKind.Object) return;
         var type = root.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
         string Str(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
 
+        try
+        {
         switch (type)
         {
             case "ready":
                 _ready = true;
                 SendSettings();
+                SendUpdate();
                 if (_pending is not null) PostImage(_pending);
                 break;
             case "drag":
                 try { DragMove(); } catch { /* only valid while the mouse button is down */ }
                 break;
+            case "max": WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; break;
             case "min": WindowState = WindowState.Minimized; break;
             case "close": Hide(); break;
             case "open": OpenImage(); break;
-            case "save": SavePng(Str("data")); break;
-            case "copy": CopyPng(Str("data")); break;
+            case "hasImage": HasImage = true; break;
+            case "documentState": HasUnsavedChanges = root.GetProperty("dirty").GetBoolean(); break;
+            case "capture":
+                if (Enum.TryParse<App.CaptureMode>(Str("mode"), out var mode)) ((App)System.Windows.Application.Current).StartCapture(mode);
+                break;
+            case "checkUpdate": await Updates.CheckAsync(); break;
+            case "installUpdate": Updates.Install(); break;
+            case "setAutoUpdate": AppSettings.Data.AutoUpdate = root.GetProperty("value").GetBoolean(); AppSettings.Save(); break;
+            case "setIncludeCursor": AppSettings.Data.IncludeCursor = root.GetProperty("value").GetBoolean(); AppSettings.Save(); break;
+            case "setCaptureDelay": AppSettings.Data.CaptureDelay = Math.Clamp(root.GetProperty("value").GetInt32(), 0, 10); AppSettings.Save(); break;
+            case "save": ExportFinished(Str("requestId"), SavePng(Str("data"))); break;
+            case "copy": CopyPng(Str("data")); ExportFinished(Str("requestId"), true); break;
             case "setAutoCopy":
                 AppSettings.Data.AutoCopy = root.TryGetProperty("value", out var b) && b.ValueKind == JsonValueKind.True;
                 AppSettings.Save();
                 break;
-            case "setHotkey": AppSettings.SetHotkey(Str("value")); break;
+            case "setHotkey": AppSettings.SetHotkey(Str("value")); SendSettings(); break;
             case "chooseSaveFolder": ChooseSaveFolder(); break;
+            case "clearSaveFolder": AppSettings.Data.SaveFolder = ""; AppSettings.Save(); SendSettings(); break;
         }
+        }
+        catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); Notify("That action couldn’t be completed. Please try again."); if (type is "copy" or "save") ExportFinished(Str("requestId"), false); }
+    }
+
+    private void ExportFinished(string requestId, bool success)
+    {
+        if (_ready) Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "exportResult", requestId, success }));
+    }
+
+    public void Notify(string message)
+    {
+        if (_ready) Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "notice", message }));
+    }
+
+    private void SendUpdate()
+    {
+        if (!_ready) return;
+        Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new {
+            type = "update", state = Updates.State, message = Updates.Message, progress = Updates.Progress, version = Updates.Version
+        }));
     }
 
     private void SendSettings()
     {
         var d = AppSettings.Data;
         Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(
-            new { type = "settings", value = new { autoCopy = d.AutoCopy, hotkey = d.Hotkey, saveFolder = d.SaveFolder } }));
+            new { type = "settings", value = new { hotkeyAvailable = ((App)System.Windows.Application.Current).HotkeyAvailable, autoCopy = d.AutoCopy, hotkey = d.Hotkey, saveFolder = d.SaveFolder, autoUpdate = d.AutoUpdate, includeCursor = d.IncludeCursor, captureDelay = d.CaptureDelay } }));
     }
 
     private void ChooseSaveFolder()
@@ -104,6 +154,7 @@ public partial class EditorWindow : Window
 
     private void OpenImage()
     {
+        if (HasUnsavedChanges && System.Windows.MessageBox.Show("Replace the current screenshot? Save or copy it first.", "Open image", MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif" };
         if (dlg.ShowDialog() != true) return;
         var bytes = File.ReadAllBytes(dlg.FileName);
@@ -114,7 +165,7 @@ public partial class EditorWindow : Window
             ".bmp" => "image/bmp",
             _ => "image/png",
         };
-        PostImage($"data:{mime};base64,{Convert.ToBase64String(bytes)}");
+        SetPendingImage($"data:{mime};base64,{Convert.ToBase64String(bytes)}");
     }
 
     private static byte[] Decode(string dataUrl)
@@ -123,25 +174,27 @@ public partial class EditorWindow : Window
         return Convert.FromBase64String(i >= 0 ? dataUrl[(i + 1)..] : dataUrl);
     }
 
-    private void SavePng(string dataUrl)
+    private bool SavePng(string dataUrl)
     {
-        if (string.IsNullOrEmpty(dataUrl)) return;
+        if (string.IsNullOrEmpty(dataUrl)) return false;
         var bytes = Decode(dataUrl);
-        var name = $"Supershot {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png"; // unique by default
+        var name = $"Supershot {DateTime.Now:yyyy-MM-dd HH.mm.ss.fff}.png"; // unique by default
 
         // If a default folder is set, save straight there; otherwise ask.
         var folder = AppSettings.Data.SaveFolder;
-        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder)) { File.WriteAllBytes(Path.Combine(folder, name), bytes); return; }
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder)) { File.WriteAllBytes(Path.Combine(folder, name), bytes); Notify("Screenshot saved."); return true; }
 
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             FileName = name, Filter = "PNG image|*.png", DefaultExt = ".png",
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
         };
-        if (dlg.ShowDialog() == true) File.WriteAllBytes(dlg.FileName, bytes);
+        if (dlg.ShowDialog() == true) { File.WriteAllBytes(dlg.FileName, bytes); Notify("Screenshot saved."); return true; }
+        Notify("Save cancelled.");
+        return false;
     }
 
-    private static void CopyPng(string dataUrl)
+    private void CopyPng(string dataUrl)
     {
         if (string.IsNullOrEmpty(dataUrl)) return;
         using var ms = new MemoryStream(Decode(dataUrl));
@@ -152,5 +205,6 @@ public partial class EditorWindow : Window
         bmp.EndInit();
         bmp.Freeze();
         System.Windows.Clipboard.SetImage(bmp);
+        Notify("Copied to clipboard.");
     }
 }

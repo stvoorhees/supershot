@@ -6,8 +6,8 @@
         Cursor="Cross">
   <Canvas x:Name="Root">
     <Rectangle x:Name="Dim" Fill="#66000000" />
-    <Rectangle x:Name="Selection" Stroke="#7C8CFF" StrokeThickness="1.5"
-               Fill="#207C8CFF" Visibility="Collapsed" />
+    <Rectangle x:Name="Selection" Stroke="#0A84FF" StrokeThickness="1.5"
+               Fill="#200A84FF" Visibility="Collapsed" />
     <Border x:Name="Hint" Background="#CC121519" CornerRadius="8" Padding="12,7"
             BorderBrush="#33FFFFFF" BorderThickness="1">
       <TextBlock Text="Drag to select a region  ·  Esc to cancel"

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Supershot</title>
 <style>
@@ -112,18 +113,21 @@
   .switch.on{background:var(--accent)}.switch.on::after{left:18px}
   .pop small{color:var(--ink-3);font-size:11.5px;display:block;margin-top:4px}
 </style>
+<link rel="stylesheet" href="polish.css" />
 </head>
 <body>
   <div class="titlebar" id="titlebar">
-    <div class="brand"><img class="logo" src="logo.png" alt="" />Supershot <span class="sub">· editor</span></div>
+    <div class="brand"><img class="logo" src="logo.png" alt="" />Supershot <span class="sub">Capture beautifully.</span></div>
     <div class="tb-spacer"></div>
+    <button class="quiet-btn" id="updateBadge" hidden>Update ready</button>
+    <button class="quiet-btn" id="themeBtn" title="Switch appearance">Light</button>
     <button class="icon-btn" id="gearBtn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-    <div class="wc" id="wc"><button data-w="min" title="Minimize">&#x2013;</button><button data-w="close" title="Close">&#x2715;</button></div>
+    <div class="wc" id="wc"><button data-w="min" title="Minimize">&#x2013;</button><button data-w="max" title="Maximize or restore">□</button><button data-w="close" title="Close">&#x2715;</button></div>
   </div>
 
   <div class="pop" id="settings">
     <h3>Settings</h3>
-    <div class="set-row"><label>Auto-copy on capture</label><div class="switch" id="autoCopy"></div></div>
+    <div class="set-row"><label>Auto-copy on capture</label><button class="switch" id="autoCopy" role="switch" aria-label="Auto-copy on capture" aria-checked="false"></button></div>
     <div class="set-row"><label>Capture hotkey</label>
       <select id="hotkeySel">
         <option value="ctrl+shift+2">Ctrl+Shift+2</option>
@@ -133,14 +137,24 @@
         <option value="printscreen">PrintScreen</option>
       </select>
     </div>
+    <p id="hotkeyWarning" class="help" hidden>That shortcut is unavailable. Choose another, or use New capture.</p>
     <div class="set-row"><label>Save to folder</label></div>
     <div class="set-row" style="margin-top:-6px"><span class="path" id="folderPath">Ask every time</span><button class="pickbtn" style="width:auto;margin:0;padding:6px 10px" id="chooseFolder">Choose…</button></div>
-    <small id="hostOnly">Hotkey and save-folder apply in the desktop app.</small>
+    <button class="text-btn" id="clearFolder">Ask where to save each time</button>
+    <div class="settings-divider"></div>
+    <h3>Software updates <span id="appVersion"></span></h3>
+    <div class="set-row"><label for="autoUpdate">Check automatically</label><input id="autoUpdate" type="checkbox" checked /></div>
+    <p id="updateMessage" class="help" aria-live="polite">Checks GitHub for new versions. Screenshots stay on this device.</p>
+    <progress id="updateProgress" max="100" value="0" hidden></progress>
+    <button class="pickbtn" id="checkUpdate">Check for updates</button>
+    <button class="pickbtn" id="installUpdate" hidden>Restart to update…</button>
+    <small id="hostOnly">Capture and updates are available in the Windows app.</small>
   </div>
 
   <div class="app">
     <div class="stage empty" id="stage">
-      <div class="toolbar" id="toolbar"></div>
+      <div class="toolbar" id="toolbar" role="toolbar" aria-label="Annotation tools"></div>
+      <div class="document-info" id="documentInfo"></div>
       <div class="canvas-wrap"><canvas id="c"></canvas></div>
       <div class="zoombar" id="zoombar">
         <button id="zoomOut" title="Zoom out">&#x2212;</button>
@@ -148,15 +162,37 @@
         <button id="zoomIn" title="Zoom in">+</button>
         <button id="zoomFit" title="Fit to window">Fit</button>
       </div>
-      <input id="textInput" />
+      <input id="textInput" aria-label="Annotation text" />
       <div class="drop-hint">
-        <div class="big">Drop or paste a screenshot</div>
-        <div>or press <kbd>⌘/Ctrl</kbd> + <kbd>V</kbd> · <span id="sampleLink" style="color:var(--accent);cursor:pointer">load a sample</span></div>
+        <img class="welcome-icon" src="logo.png" alt="" />
+        <div class="eyebrow">A LITTLE MORE CONSIDERED</div>
+        <div class="big">Every screenshot, beautifully finished.</div>
+        <p class="welcome-copy">Capture a detail. Give it room to breathe.<br />Add a pointer, a note, or just a little polish.</p>
+        <button class="welcome-capture" id="welcomeCapture">Capture a region <kbd id="captureKey">Ctrl+Shift+2</kbd></button>
+        <div>or press <kbd>⌘/Ctrl</kbd> + <kbd>V</kbd> · <button id="sampleLink" class="text-btn">try an example</button></div>
       </div>
     </div>
 
     <aside class="panel">
-      <div class="group">
+      <div class="inspector-tabs" role="tablist" aria-label="Inspector"><button role="tab" data-tab="capture" aria-selected="true">Capture</button><button role="tab" data-tab="style" aria-selected="false">Style</button><button role="tab" data-tab="pointer" aria-selected="false">Pointer</button></div>
+      <div class="group capture-group" data-inspector="capture">
+        <div class="glabel">Capture</div>
+        <div class="seg" id="captureMode"><button data-mode="Region" class="on">Region</button><button data-mode="Window">Window</button><button data-mode="FullScreen">Display</button></div>
+        <div class="row"><label for="captureDelay">Timer</label><select id="captureDelay"><option value="0">No delay</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></div>
+        <button class="pickbtn capture-button" id="captureBtn">New capture</button>
+        <p class="help">Use a timer to position your pointer after selecting an area.</p>
+      </div>
+      <div class="group cursor-group" data-inspector="pointer">
+        <div class="glabel">Pointer</div>
+        <div class="row"><label for="includeCursor">Show pointer</label><input type="checkbox" id="includeCursor" checked /></div>
+        <div class="seg" id="cursorStyle"><button data-style="native" class="on">Original</button><button data-style="dark">Dark</button><button data-style="light">Light</button></div>
+        <div class="row"><label for="cursorScale">Size</label><span class="val" id="cursorScaleV">1×</span></div>
+        <input type="range" id="cursorScale" min="1" max="3" step="0.25" value="1" />
+        <div class="row"><label for="cursorHalo">Highlight pointer</label><input type="checkbox" id="cursorHalo" /></div>
+        <button class="pickbtn" id="placeCursor">Place pointer on image</button>
+        <p class="help" id="cursorHelp">Keep the captured pointer or place a styled one.</p>
+      </div>
+      <div class="group" data-inspector="style">
         <div class="glabel">Background</div>
         <div class="seg" id="bgtype">
           <button data-t="gradient" class="on">Gradient</button>
@@ -169,7 +205,7 @@
         <button class="pickbtn" id="bgImageBtn" style="display:none">Choose image…</button>
       </div>
 
-      <div class="group">
+      <div class="group" data-inspector="style">
         <div class="glabel">Frame</div>
         <div class="seg" id="frametype" style="margin-bottom:14px">
           <button data-f="none" class="on">None</button>
@@ -184,7 +220,7 @@
         <input type="range" id="sh" min="0" max="100" value="45" />
       </div>
 
-      <div class="group" id="markGroup" style="display:none">
+      <div class="group" data-inspector="style" id="markGroup" style="display:none">
         <div class="glabel">Markup</div>
         <div class="row"><label>Thickness</label><span class="val" id="wV">4</span></div>
         <input type="range" id="strokeW" min="1" max="16" value="4" />
@@ -202,6 +238,7 @@
   <input type="file" id="file" class="hidden-file" accept="image/*" />
   <input type="file" id="bgFile" class="hidden-file" accept="image/*" />
 
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
 const $ = id => document.getElementById(id);
 const c = $('c'), ctx = c.getContext('2d');
@@ -214,14 +251,19 @@ const GRADIENTS = [
   {a:'#d299c2',b:'#fef9d7'}, {a:'#ffecd2',b:'#fcb69f'}, {a:'#c1dfc4',b:'#deecdd'},
 ];
 const ANG=135*Math.PI/180;
-const state = { bgType:'gradient', grad:2, solid:'#1f2430', pad:64, rad:14, shadow:45,
+const state = { bgType:'gradient', grad:1, solid:'#1f2430', pad:64, rad:14, shadow:45,
                 frame:'none', tool:'select', color:'#ff453a', width:4 };
 let img=null, bgImg=null;
+let pointer=null, pointerImage=null, placingPointer=false;
+const pointerStyle={style:'native',scale:1,halo:false};
+let imageGeneration=0, imageRevision=0, bgRevision=0;
+let savedSignature=null, lastDocumentDirty=null, exportSequence=0;
+const pendingExports=new Map();
 let annots=[], current=null, selected=null, dragMode=null, dragStart=null, dragOrig=null, guides=[];
 let resizeH=null, spacingMarks=[];
 let zoom=1, panX=0, panY=0, panMode=false, panStart=null;
 let undoStack=[], redoStack=[];
-const settings = { autoCopy:false, hotkey:'ctrl+shift+2', saveFolder:'' };
+const settings = { autoCopy:false, hotkey:'ctrl+shift+2', saveFolder:'', includeCursor:true, autoUpdate:true, captureDelay:0 };
 
 /* ---------- persistence ---------- */
 function saveSettings(){ try{ localStorage.setItem('supershot.state', JSON.stringify({
@@ -234,7 +276,7 @@ function loadSettings(){ try{ const s=JSON.parse(localStorage.getItem('supershot
 
 /* ---------- swatches ---------- */
 const swWrap=$('swatches');
-GRADIENTS.forEach((g,i)=>{ const d=document.createElement('div'); d.className='sw'; d.dataset.i=i;
+GRADIENTS.forEach((g,i)=>{ const d=document.createElement('button'); d.setAttribute('aria-label', 'Background '+(i+1)); d.className='sw'; d.dataset.i=i;
   d.style.background=`linear-gradient(135deg, ${g.a}, ${g.b})`;
   d.onclick=()=>{ state.grad=i; state.bgType='gradient'; syncBgType(); render(); saveSettings(); }; swWrap.appendChild(d); });
 function syncSwatch(){ [...swWrap.children].forEach(d=>d.classList.toggle('on', +d.dataset.i===state.grad)); }
@@ -249,12 +291,12 @@ $('bgtype').onclick=e=>{ const b=e.target.closest('button'); if(!b)return; state
   if(b.dataset.t==='image'&&!bgImg) $('bgFile').click(); };
 $('solid').oninput=e=>{ state.solid=e.target.value; render(); saveSettings(); };
 $('bgImageBtn').onclick=()=>$('bgFile').click();
-$('bgFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=ev=>{ const i=new Image(); i.onload=()=>{ bgImg=i; state.bgType='image'; syncBgType(); render(); }; i.src=ev.target.result; }; rd.readAsDataURL(f); };
+$('bgFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=ev=>{ const i=new Image(); i.onload=()=>{ bgImg=i; bgRevision++; state.bgType='image'; syncBgType(); render(); }; i.src=ev.target.result; }; rd.readAsDataURL(f); };
 
 /* ---------- frame + sliders ---------- */
 $('frametype').onclick=e=>{ const b=e.target.closest('button'); if(!b)return; state.frame=b.dataset.f;
   [...$('frametype').children].forEach(x=>x.classList.toggle('on',x===b)); render(); saveSettings(); };
-function fillTrack(el){ const p=(el.value-el.min)/(el.max-el.min)*100; el.style.background=`linear-gradient(90deg, var(--accent) ${p}%, #33343b ${p}%)`; }
+function fillTrack(el){ const p=(el.value-el.min)/(el.max-el.min)*100; el.style.background=`linear-gradient(90deg, var(--accent) ${p}%, var(--track, #33343b) ${p}%)`; }
 function slider(id,key,label,persist){ const el=$(id); el.oninput=()=>{ state[key]=+el.value; if(label)$(label).textContent=el.value; fillTrack(el); render(); if(persist)saveSettings(); }; }
 slider('pad','pad','padV',1); slider('rad','rad','radV',1); slider('sh','shadow','shV',1); slider('strokeW','width','wV',1);
 $('markColor').oninput=e=>{ state.color=e.target.value; syncMini(); if(selected){ pushUndo(); selected.color=e.target.value; render(); } saveSettings(); };
@@ -268,15 +310,17 @@ const ICONS={
   highlight:'<path d="M4 20h16"/><path d="M6 16l8-11 4 3-8 11z"/>',
   blur:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
 };
-const TOOLS=['select','arrow','box','ellipse','line','text','step','highlight','blur'];
+ICONS.redact='<rect x="4" y="6" width="16" height="12" rx="2" fill="currentColor"/>';
+const TOOLS=['select','arrow','box','ellipse','line','text','step','highlight','blur','redact'];
 const tb=$('toolbar');
-TOOLS.forEach(t=>{ const b=document.createElement('button'); b.className='tool-btn'+(t===state.tool?' on':''); b.dataset.tool=t; b.title=t;
+TOOLS.forEach(t=>{ const b=document.createElement('button'); b.className='tool-btn'+(t===state.tool?' on':''); b.dataset.tool=t; b.title=t==='blur'?'Blur (visual effect, not secure redaction)':t; b.setAttribute('aria-label',b.title);
   b.innerHTML=`<svg viewBox="0 0 24 24">${ICONS[t]}</svg>`; b.onclick=()=>setTool(t); tb.appendChild(b); if(t==='select') tb.appendChild(sep()); });
 tb.appendChild(sep());
 const mini=document.createElement('div'); mini.className='swatch-mini'; mini.title='Color'; mini.onclick=()=>$('markColor').click(); tb.appendChild(mini);
 function sep(){ const s=document.createElement('div'); s.className='tb-sep'; return s; }
 function syncMini(){ mini.style.background=state.color; }
 function setTool(t){ state.tool=t; selected=null; [...tb.querySelectorAll('.tool-btn')].forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
+  if(t!=='select')showInspector('style');
   $('markGroup').style.display=(t==='select'||t==='blur')?'none':(t==='step'?'block':'block'); if(t==='select')$('markGroup').style.display='none';
   c.classList.toggle('tool',t!=='select'); render(); }
 
@@ -316,6 +360,7 @@ function drawAnnot(a,pad,bar){
   ctx.strokeStyle=a.color; ctx.fillStyle=a.color; ctx.lineWidth=a.width; ctx.lineCap='round'; ctx.lineJoin='round';
   if(a.type==='blur'){ ctx.save(); roundRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1,4); ctx.clip();
     ctx.filter=`blur(${Math.max(5,a.width*2)}px)`; ctx.drawImage(img,pad,oy); ctx.filter='none'; ctx.restore(); return; }
+  if(a.type==='redact'){ctx.fillStyle='#15171b';ctx.fillRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1);return;}
   if(a.type==='box'){ const R=Math.round; ctx.strokeRect(R(pad+n.x1),R(oy+n.y1),R(n.x2-n.x1),R(n.y2-n.y1)); return; }
   if(a.type==='ellipse'){ ctx.beginPath(); ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,7); ctx.stroke(); return; }
   if(a.type==='highlight'){ ctx.save(); ctx.globalAlpha=.32; ctx.fillStyle=a.color; ctx.fillRect(pad+n.x1,oy+n.y1,n.x2-n.x1,n.y2-n.y1); ctx.restore(); return; }
@@ -328,6 +373,10 @@ function drawAnnot(a,pad,bar){
     ctx.fillStyle='#fff'; ctx.font=`700 ${rad*1.05}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(a.n),x1,y1+1); ctx.textAlign='left'; return; }
 }
 function render(){
+  syncDocumentState();
+  $('copyBtn').disabled=$('saveBtn').disabled=!img;
+  $('placeCursor').disabled=!img;
+  document.querySelector('[data-style="native"]').disabled=!pointerImage;
   if(!img){ stage.classList.add('empty'); return; }
   stage.classList.remove('empty');
   // renumber steps
@@ -339,7 +388,11 @@ function render(){
   ctx.save(); roundRect(pad,pad,img.width,img.height+bar,r); ctx.clip();
   if(bar>0) drawFrameChrome(pad,bar);
   ctx.drawImage(img,pad,pad+bar);
-  (current?annots.concat(current):annots).forEach(a=>drawAnnot(a,pad,bar)); drawGuides(pad,bar); drawSpacing(pad,bar); ctx.restore();
+  drawPointer(pad,pad+bar);
+  const layers=current?annots.concat(current):annots;
+  layers.filter(a=>a.type!=='redact').forEach(a=>drawAnnot(a,pad,bar));
+  // Opaque redactions always cover source-repainting effects such as blur.
+  layers.filter(a=>a.type==='redact').forEach(a=>drawAnnot(a,pad,bar)); drawGuides(pad,bar); drawSpacing(pad,bar); ctx.restore();
   if(selected){ const n=norm(selected), oy=pad+bar; ctx.save(); ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
     if(selected.type==='step'){ const rad=Math.max(13,selected.width*3.2); ctx.strokeRect(pad+selected.x1-rad-4,oy+selected.y1-rad-4,rad*2+8,rad*2+8); }
     else ctx.strokeRect(pad+n.x1-4,oy+n.y1-4,(n.x2-n.x1)+8,(n.y2-n.y1)+8);
@@ -347,9 +400,10 @@ function render(){
     handlesFor(selected).forEach(h=>{ ctx.fillStyle='#fff'; ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.4;
       ctx.beginPath(); ctx.rect(pad+h.x-hsz/2, oy+h.y-hsz/2, hsz, hsz); ctx.fill(); ctx.stroke(); });
     ctx.restore(); }
+  $('documentInfo').textContent=`${W.toLocaleString()} × ${H.toLocaleString()} px · PNG`;
   applyDisplay();
 }
-function baseFit(){ const w=Math.max(120,stage.clientWidth-80), h=Math.max(120,stage.clientHeight-102); return Math.min(w/c.width,h/c.height,1); }
+function baseFit(){ const css=getComputedStyle(stage), w=Math.max(120,stage.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight)), h=Math.max(120,stage.clientHeight-parseFloat(css.paddingTop)-parseFloat(css.paddingBottom)); return Math.min(w/c.width,h/c.height,1); }
 function applyDisplay(){ if(!img)return; const s=baseFit()*zoom;
   c.style.width=(c.width*s)+'px'; c.style.height=(c.height*s)+'px';
   // clamp pan so the canvas can't be dragged fully off-stage
@@ -363,13 +417,19 @@ function resetZoom(){ zoom=1; panX=0; panY=0; applyDisplay(); }
 window.addEventListener('resize', applyDisplay);
 
 /* ---------- undo/redo ---------- */
-function snap(){ return JSON.parse(JSON.stringify(annots)); }
+function snap(){return {annots:JSON.parse(JSON.stringify(annots)),pointer:pointer?{...pointer}:null,pointerStyle:{...pointerStyle},includeCursor:settings.includeCursor};}
+function restoreSnap(s){annots=s.annots;pointer=s.pointer;Object.assign(pointerStyle,s.pointerStyle);settings.includeCursor=s.includeCursor;syncPointerUI();}
+function syncPointerUI(){
+  $('includeCursor').checked=settings.includeCursor;$('cursorHalo').checked=pointerStyle.halo;
+  $('cursorScale').value=pointerStyle.scale;$('cursorScaleV').textContent=pointerStyle.scale+'×';fillTrack($('cursorScale'));
+  [...$('cursorStyle').children].forEach(b=>b.classList.toggle('on',b.dataset.style===pointerStyle.style));
+}
 function pushUndo(){ undoStack.push(snap()); if(undoStack.length>60)undoStack.shift(); redoStack=[]; }
-function undo(){ if(!undoStack.length)return; redoStack.push(snap()); annots=undoStack.pop(); selected=null; render(); }
-function redo(){ if(!redoStack.length)return; undoStack.push(snap()); annots=redoStack.pop(); selected=null; render(); }
+function undo(){ if(!undoStack.length)return; redoStack.push(snap()); restoreSnap(undoStack.pop()); selected=null; render(); }
+function redo(){ if(!redoStack.length)return; undoStack.push(snap()); restoreSnap(redoStack.pop()); selected=null; render(); }
 
 /* ---------- interaction ---------- */
-function hit(a,x,y){ if(a.type==='step'){ const rad=Math.max(13,a.width*3.2); return Math.hypot(x-a.x1,y-a.y1)<=rad+4; }
+function hit(a,x,y){ if(a.type==='text'){const b=bboxFor(a);return x>=b.l-4&&x<=b.r+4&&y>=b.t-4&&y<=b.b+4;}  if(a.type==='step'){ const rad=Math.max(13,a.width*3.2); return Math.hypot(x-a.x1,y-a.y1)<=rad+4; }
   const n=norm(a), m=8+a.width; if(a.type==='arrow'||a.type==='line') return distSeg(x,y,a.x1,a.y1,a.x2,a.y2)<m;
   return x>=n.x1-m&&x<=n.x2+m&&y>=n.y1-m&&y<=n.y2+m; }
 function distSeg(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy||1; let t=((px-x1)*dx+(py-y1)*dy)/l; t=Math.max(0,Math.min(1,t)); return Math.hypot(px-(x1+t*dx),py-(y1+t*dy)); }
@@ -483,16 +543,17 @@ window.addEventListener('mouseup', ()=>{
 // zoom: Ctrl/Cmd + wheel (pinch on trackpad), centered
 stage.addEventListener('wheel', e=>{ if(!img)return; if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(zoom*(e.deltaY<0?1.12:0.89)); } }, {passive:false});
 // hold Space to pan
-window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName||'')){ panMode=true; c.style.cursor='grab'; } });
+window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(document.activeElement?.tagName||'')){ panMode=true; c.style.cursor='grab'; } });
 window.addEventListener('keyup', e=>{ if(e.code==='Space'){ panMode=false; c.style.cursor=''; } });
 $('zoomIn').onclick=()=>setZoom(zoom*1.15); $('zoomOut').onclick=()=>setZoom(zoom*0.87); $('zoomFit').onclick=()=>resetZoom();
 window.addEventListener('keydown', e=>{
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||''))return;
   if((e.key==='Delete'||e.key==='Backspace')&&selected){ pushUndo(); annots=annots.filter(a=>a!==selected); selected=null; render(); e.preventDefault(); }
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){ e.shiftKey?redo():undo(); e.preventDefault(); }
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='y'){ redo(); e.preventDefault(); }
 });
 function placeText(e,p){ const ti=$('textInput'), r=c.getBoundingClientRect();
-  ti.style.display='block'; ti.style.left=e.clientX+'px'; ti.style.top=e.clientY+'px'; ti.style.color=state.color;
+  ti.style.display='block'; const sr=stage.getBoundingClientRect(); ti.style.left=(e.clientX-sr.left)+'px'; ti.style.top=(e.clientY-sr.top)+'px'; ti.style.color=state.color;
   ti.style.fontSize=Math.max(14,state.width*5)*(r.width/c.width)+'px'; ti.value=''; setTimeout(()=>ti.focus(),0);
   const commit=()=>{ if(ti.value.trim()){ pushUndo(); annots.push({type:'text',x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:state.color,width:state.width,text:ti.value}); }
     ti.style.display='none'; ti.onblur=null; ti.onkeydown=null; render(); };
@@ -502,7 +563,7 @@ function placeText(e,p){ const ti=$('textInput'), r=c.getBoundingClientRect();
 /* ---------- settings popover ---------- */
 $('gearBtn').onclick=()=>$('settings').classList.toggle('open');
 document.addEventListener('mousedown',e=>{ if(!e.target.closest('#settings')&&!e.target.closest('#gearBtn')) $('settings').classList.remove('open'); });
-function syncSettingsUI(){ $('autoCopy').classList.toggle('on',settings.autoCopy); $('hotkeySel').value=settings.hotkey;
+function syncSettingsUI(){ $('hotkeyWarning').hidden=settings.hotkeyAvailable!==false; $('autoCopy').classList.toggle('on',settings.autoCopy); $('autoCopy').setAttribute('aria-checked',settings.autoCopy); $('includeCursor').checked=settings.includeCursor; $('autoUpdate').checked=settings.autoUpdate; $('captureDelay').value=settings.captureDelay; $('captureKey').textContent=settings.hotkey;  $('hotkeySel').value=settings.hotkey;
   $('folderPath').textContent=settings.saveFolder||'Ask every time'; }
 $('autoCopy').onclick=()=>{ settings.autoCopy=!settings.autoCopy; syncSettingsUI(); saveSettings(); if(HOST)HOST.postMessage({type:'setAutoCopy',value:settings.autoCopy}); };
 $('hotkeySel').onchange=e=>{ settings.hotkey=e.target.value; if(HOST)HOST.postMessage({type:'setHotkey',value:settings.hotkey}); };
@@ -510,8 +571,10 @@ $('chooseFolder').onclick=()=>{ if(HOST)HOST.postMessage({type:'chooseSaveFolder
 
 /* ---------- image in/out + bridge ---------- */
 const HOST=window.chrome&&window.chrome.webview;
-function setImage(src){ const i=new Image(); i.onload=()=>{ img=i; annots=[]; selected=null; undoStack=[]; redoStack=[]; zoom=1; panX=0; panY=0; render();
-  if(HOST&&settings.autoCopy) HOST.postMessage({type:'copy',data:exportPng()}); }; i.src=src; }
+function setImage(src, cursor=null){ const generation=++imageGeneration; const i=new Image(); i.onload=async()=>{ if(generation!==imageGeneration)return; pointer=cursor; pointerImage=null; if(cursor?.data){ const ci=new Image(); try { ci.src=cursor.data; await ci.decode(); if(generation!==imageGeneration)return; pointerImage=ci; }catch{} } img=i; $('settings').classList.remove('open'); imageRevision++; if(!pointerImage&&pointerStyle.style==='native')pointerStyle.style='dark';syncPointerUI(); current=null; placingPointer=false; dragMode=null; guides=[]; spacingMarks=[]; showInspector('style'); annots=[]; selected=null; undoStack=[]; redoStack=[]; zoom=1; panX=0; panY=0; render();
+  if(HOST)HOST.postMessage({type:'hasImage'});
+  $('cursorHelp').textContent=pointer&&pointer.x>=0&&pointer.y>=0&&pointer.x<img.width&&pointer.y<img.height?'Pointer captured. Change its appearance below.':'Place a styled pointer, or use a capture timer to position the original.';
+  if(HOST&&settings.autoCopy) sendExport('copy'); }; i.onerror=()=>notify('That image could not be opened. Try a PNG or JPEG.'); i.src=src; }
 window.supershot={ setImage };
 function loadFromFile(f){ if(!f)return; const rd=new FileReader(); rd.onload=e=>setImage(e.target.result); rd.readAsDataURL(f); }
 $('file').onchange=e=>loadFromFile(e.target.files[0]);
@@ -519,24 +582,28 @@ document.addEventListener('paste',e=>{ const it=[...(e.clipboardData?.items||[])
 ['dragover','drop'].forEach(ev=>stage.addEventListener(ev,e=>e.preventDefault()));
 stage.addEventListener('drop',e=>{ const f=[...(e.dataTransfer?.files||[])].find(x=>x.type.startsWith('image/')); if(f)loadFromFile(f); });
 
-function exportPng(){ const keep=selected, kg=guides, ks=spacingMarks; selected=null; guides=[]; spacingMarks=[]; render(); const url=c.toDataURL('image/png'); selected=keep; guides=kg; spacingMarks=ks; render(); return url; }
+function exportPng(){ const keep=selected, kg=guides, ks=spacingMarks, kc=current; selected=null; guides=[]; spacingMarks=[]; current=null; render(); const url=c.toDataURL('image/png'); selected=keep; guides=kg; spacingMarks=ks; current=kc; render(); return url; }
 function fileName(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `Supershot ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}.png`; }
 
 if(HOST){
   HOST.addEventListener('message',e=>{ const m=e.data; if(!m)return;
-    if(m.type==='image'&&m.data) setImage(m.data);
-    else if(m.type==='settings'){ Object.assign(settings,m.value||{}); syncSettingsUI(); } });
-  $('titlebar').addEventListener('mousedown',e=>{ if(!e.target.closest('#wc')&&!e.target.closest('#gearBtn')) HOST.postMessage({type:'drag'}); });
+    if(m.type==='image'&&m.data) setImage(m.data,m.cursor);
+    else if(m.type==='notice')notify(m.message);
+    else if(m.type==='exportResult'){const signature=pendingExports.get(m.requestId);if(m.success&&signature)savedSignature=signature;pendingExports.delete(m.requestId);syncDocumentState();}
+    else if(m.type==='update')syncUpdate(m);
+    else if(m.type==='settings'){ Object.assign(settings,m.value||{}); syncSettingsUI(); render(); } });
+  $('titlebar').addEventListener('dblclick',e=>{if(!e.target.closest('button,select,input'))HOST.postMessage({type:'max'});});
+  $('titlebar').addEventListener('mousedown',e=>{ if(!e.target.closest('button,select,input')) HOST.postMessage({type:'drag'}); });
   $('wc').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b)HOST.postMessage({type:b.dataset.w}); });
   $('openBtn').onclick=()=>HOST.postMessage({type:'open'});
-  $('saveBtn').onclick=()=>{ if(img)HOST.postMessage({type:'save',data:exportPng()}); };
-  $('copyBtn').onclick=()=>{ if(img)HOST.postMessage({type:'copy',data:exportPng()}); };
+  $('saveBtn').onclick=()=>sendExport('save');
+  $('copyBtn').onclick=()=>sendExport('copy');
   HOST.postMessage({type:'ready'});
 } else {
   $('wc').style.display='none'; $('hostOnly').style.display='block';
   $('openBtn').onclick=()=>$('file').click();
-  $('saveBtn').onclick=()=>{ const a=document.createElement('a'); a.href=exportPng(); a.download=fileName(); a.click(); };
-  $('copyBtn').onclick=async()=>{ try{ const b=await new Promise(r=>c.toBlob(r,'image/png')); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); }catch(e){} };
+  $('saveBtn').onclick=()=>{ if(!img)return; const a=document.createElement('a'); a.href=exportPng(); a.download=fileName(); a.click(); };
+  $('copyBtn').onclick=async()=>{ if(!img)return; try{ const b=await (await fetch(exportPng())).blob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); notify('Copied to clipboard.'); }catch(e){notify('Clipboard unavailable. Save the PNG instead.');} };
 }
 
 /* ---------- boot ---------- */
@@ -550,25 +617,98 @@ $('solid').value=state.solid; $('markColor').value=state.color;
 syncBgType(); syncMini(); syncSettingsUI();
 
 function makeSample(){
-  const s=document.createElement('canvas'); s.width=1200; s.height=760; const x=s.getContext('2d');
-  x.fillStyle='#0f1218'; x.fillRect(0,0,1200,760);
-  x.fillStyle='#171b22'; x.fillRect(0,0,1200,52);
-  ['#ff5f57','#febc2e','#28c840'].forEach((col,i)=>{ x.fillStyle=col; x.beginPath(); x.arc(28+i*22,26,7,0,7); x.fill(); });
-  x.fillStyle='#8b93a3'; x.font='500 15px sans-serif'; x.fillText('Dashboard — Overview',470,31);
-  x.fillStyle='#12151b'; x.fillRect(0,52,240,708);
-  x.fillStyle='#0a84ff'; x.fillRect(0,96,4,34); x.fillStyle='#e6e9f0'; x.font='600 14px sans-serif'; x.fillText('Home',30,118);
-  ['Projects','Analytics','Team','Settings'].forEach((t,i)=>{ x.fillStyle='#8b93a3'; x.fillText(t,30,168+i*40); });
-  const grad=x.createLinearGradient(280,90,1160,90); grad.addColorStop(0,'#0a84ff'); grad.addColorStop(1,'#57e0d0');
-  [['Revenue','$48.2k'],['Active','1,204'],['Uptime','99.98%']].forEach((cd,i)=>{ const cx=280+i*300;
-    x.fillStyle='#151a22'; rr(x,cx,96,268,120,14); x.fill(); x.fillStyle='#8b93a3'; x.font='500 13px sans-serif'; x.fillText(cd[0],cx+20,128);
-    x.fillStyle='#eef1f6'; x.font='700 30px sans-serif'; x.fillText(cd[1],cx+20,168); });
-  x.fillStyle='#151a22'; rr(x,280,240,880,470,14); x.fill(); x.strokeStyle=grad; x.lineWidth=3; x.beginPath();
-  const pts=[.6,.5,.62,.45,.3,.42,.35,.25,.3,.18,.22,.12]; pts.forEach((p,i)=>{ const px=320+i*(800/(pts.length-1)), py=280+p*420; i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke();
+  const s=document.createElement('canvas');s.width=1200;s.height=760;const x=s.getContext('2d');
+  x.fillStyle='#faf9f6';x.fillRect(0,0,1200,760);
+  x.fillStyle='#f0efeb';x.fillRect(0,0,1200,58);
+  ['#e98b80','#e5c36f','#91bba0'].forEach((col,i)=>{x.fillStyle=col;x.beginPath();x.arc(25+i*20,29,6,0,Math.PI*2);x.fill();});
+  x.fillStyle='#7a7d78';x.font='500 14px sans-serif';x.fillText('Fieldnotes',555,34);
+  x.fillStyle='#333c37';x.font='600 19px sans-serif';x.fillText('Fieldnotes',64,125);
+  x.fillStyle='#8a8e86';x.font='13px sans-serif';x.fillText('A notebook for the everyday.',64,151);
+  x.fillStyle='#66766a';x.font='600 12px sans-serif';x.fillText('DESIGN JOURNAL  /  08',64,232);
+  x.fillStyle='#293c31';x.font='500 58px Georgia,serif';x.fillText('A little less.',60,314);x.fillText('A little better.',60,384);
+  x.fillStyle='#72786f';x.font='19px sans-serif';
+  ['The best ideas usually start with a little space.', 'A clear surface. A fresh page. One thing worth', 'paying attention to.'].forEach((line,i)=>x.fillText(line,64,444+i*32));
+  x.fillStyle='#e5e9e0';rr(x,64,579,208,48,24);x.fill();x.fillStyle='#455e48';x.font='500 14px sans-serif';x.fillText('Keep a little room  →',87,609);
+  x.fillStyle='#e8e5dc';rr(x,710,172,410,474,170);x.fill();
+  const g=x.createLinearGradient(710,172,1120,646);g.addColorStop(0,'#aabdaa');g.addColorStop(1,'#47614f');
+  x.fillStyle=g;rr(x,752,213,326,392,150);x.fill();
+  x.save();rr(x,752,213,326,392,150);x.clip();x.fillStyle='#c9d5bc';x.beginPath();x.arc(838,565,196,0,Math.PI*2);x.fill();
+  x.fillStyle='#6f8972';x.beginPath();x.arc(1080,665,218,0,Math.PI*2);x.fill();x.restore();
+  x.fillStyle='#a0a59b';x.font='12px sans-serif';x.fillText('Notes on making things feel considered.',64,699);
   return s.toDataURL();
 }
 function rr(x,X,Y,W,H,r){ x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+W,Y,X+W,Y+H,r); x.arcTo(X+W,Y+H,X,Y+H,r); x.arcTo(X,Y+H,X,Y,r); x.arcTo(X,Y,X+W,Y,r); x.closePath(); }
 $('sampleLink').onclick=()=>setImage(makeSample());
-if(!HOST) setImage(makeSample());
+render();
+
+function documentSignature(){return JSON.stringify({image:imageRevision,background:bgRevision,annots,pointer,pointerStyle,includeCursor:settings.includeCursor,
+  bgType:state.bgType,grad:state.grad,solid:state.solid,pad:state.pad,rad:state.rad,shadow:state.shadow,frame:state.frame});}
+function syncDocumentState(){
+  const dirty=!!img&&documentSignature()!==savedSignature;
+  if(HOST&&dirty!==lastDocumentDirty){lastDocumentDirty=dirty;HOST.postMessage({type:'documentState',dirty});}
+}
+function sendExport(type){
+  if(!img)return;
+  const requestId=String(++exportSequence), data=exportPng();
+  pendingExports.set(requestId,documentSignature());HOST.postMessage({type,data,requestId});
+}
+/* Pointer stays separate from the source pixels and is included in every export. */
+function drawPointer(ox,oy){
+  if(!pointer||!settings.includeCursor)return;
+  const {x,y}=pointer, scale=pointerStyle.scale;
+  if(x<0||y<0||x>=img.width||y>=img.height)return;
+  ctx.save();ctx.translate(ox+x,oy+y);
+  if(pointerStyle.halo){ctx.fillStyle='rgba(255,195,45,.35)';ctx.beginPath();ctx.arc(0,0,25*scale,0,Math.PI*2);ctx.fill();}
+  if(pointerStyle.style==='native'&&pointerImage){
+    ctx.drawImage(pointerImage,-pointer.hotX*scale,-pointer.hotY*scale,pointer.width*scale,pointer.height*scale);
+  }else{
+    ctx.scale(scale,scale);ctx.shadowColor='rgba(0,0,0,.25)';ctx.shadowBlur=3;ctx.shadowOffsetY=2;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,29);ctx.lineTo(7,22);ctx.lineTo(13,35);ctx.lineTo(19,32);ctx.lineTo(13,20);ctx.lineTo(23,20);ctx.closePath();
+    ctx.fillStyle=pointerStyle.style==='light'?'#fff':'#202124';ctx.strokeStyle=pointerStyle.style==='light'?'#202124':'#fff';ctx.lineWidth=1.6;ctx.lineJoin='round';ctx.fill();ctx.stroke();
+  }ctx.restore();
+}
+let toastTimer;
+function notify(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('visible'),4000);}
+function showInspector(tab){
+  document.querySelectorAll('[data-inspector]').forEach(el=>el.hidden=el.dataset.inspector!==tab);
+  document.querySelectorAll('[data-tab]').forEach(el=>el.setAttribute('aria-selected',String(el.dataset.tab===tab)));
+}
+document.querySelector('.inspector-tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b)showInspector(b.dataset.tab);};
+showInspector('capture');
+let captureMode='Region';
+$('captureMode').onclick=e=>{const b=e.target.closest('button');if(!b)return;captureMode=b.dataset.mode;[...$('captureMode').children].forEach(x=>x.classList.toggle('on',x===b));};
+function capture(){if(HOST)HOST.postMessage({type:'capture',mode:captureMode});else notify('Screen capture is available in the Windows app. Open or drop an image here.');}
+$('captureBtn').onclick=capture;$('welcomeCapture').onclick=capture;
+$('captureDelay').onchange=e=>{settings.captureDelay=+e.target.value;if(HOST)HOST.postMessage({type:'setCaptureDelay',value:settings.captureDelay});};
+$('includeCursor').onchange=e=>{pushUndo();settings.includeCursor=e.target.checked;if(HOST)HOST.postMessage({type:'setIncludeCursor',value:settings.includeCursor});render();};
+$('cursorStyle').onclick=e=>{const b=e.target.closest('button');if(!b)return;pushUndo();pointerStyle.style=b.dataset.style;[...$('cursorStyle').children].forEach(x=>x.classList.toggle('on',x===b));render();};
+$('cursorScale').onpointerdown=()=>pushUndo();
+$('cursorScale').onkeydown=e=>{if(e.key.startsWith('Arrow'))pushUndo();};
+$('cursorScale').oninput=e=>{pointerStyle.scale=+e.target.value;$('cursorScaleV').textContent=pointerStyle.scale+'×';fillTrack(e.target);render();};
+$('cursorHalo').onchange=e=>{pushUndo();pointerStyle.halo=e.target.checked;render();};
+$('placeCursor').onclick=()=>{placingPointer=true;c.style.cursor='crosshair';notify('Click inside the screenshot to place the pointer. Escape cancels.');};
+c.addEventListener('mousedown',e=>{if(!placingPointer||!img)return;e.stopImmediatePropagation();e.preventDefault();const p=toImage(e);if(p.x<0||p.y<0||p.x>=img.width||p.y>=img.height)return;
+  pushUndo();pointer={...pointer,x:p.x,y:p.y};if(!pointerImage){pointerStyle.style='dark';syncPointerUI();}settings.includeCursor=true;$('includeCursor').checked=true;placingPointer=false;c.style.cursor='';clearTimeout(toastTimer);$('toast').classList.remove('visible');$('cursorHelp').textContent='Pointer placed. Reposition it at any time.';render();},true);
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){placingPointer=false;c.style.cursor='';$('settings').classList.remove('open');}
+  if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||''))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();$('saveBtn').click();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}
+});
+$('clearFolder').onclick=()=>{if(HOST)HOST.postMessage({type:'clearSaveFolder'});};
+$('autoUpdate').onchange=e=>{if(HOST)HOST.postMessage({type:'setAutoUpdate',value:e.target.checked});};
+$('checkUpdate').onclick=()=>{if(HOST)HOST.postMessage({type:'checkUpdate'});else notify('Updates are available in the installed Windows app.');};
+$('installUpdate').onclick=()=>{if(HOST)HOST.postMessage({type:'installUpdate'});};
+$('updateBadge').onclick=()=>$('settings').classList.add('open');
+function syncUpdate(m){$('appVersion').textContent=m.version;$('updateMessage').textContent=m.message;
+  $('updateProgress').hidden=m.state!=='downloading';$('updateProgress').value=m.progress;
+  $('checkUpdate').disabled=['checking','downloading'].includes(m.state);$('installUpdate').hidden=m.state!=='ready';$('updateBadge').hidden=m.state!=='ready';}
+let appearance=localStorage.getItem('supershot.appearance')||'light';
+function applyTheme(){document.documentElement.dataset.theme=appearance;$('themeBtn').textContent=appearance==='light'?'Dark':'Light';$('themeBtn').setAttribute('aria-label','Switch to '+$('themeBtn').textContent.toLowerCase()+' appearance');}
+$('themeBtn').onclick=()=>{appearance=appearance==='light'?'dark':'light';localStorage.setItem('supershot.appearance',appearance);applyTheme();};applyTheme();
+for(const [id,label] of Object.entries({pad:'Padding',rad:'Corner radius',sh:'Shadow',strokeW:'Annotation thickness',solid:'Background color',markColor:'Annotation color'}))$(id).setAttribute('aria-label',label);
+const undoButton=document.createElement('button');undoButton.className='tool-btn';undoButton.title='Undo (Ctrl+Z)';undoButton.setAttribute('aria-label','Undo');undoButton.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 4L3 9l5 5M3 9h10a7 7 0 0 1 0 14"/></svg>';undoButton.onclick=undo;tb.appendChild(sep());tb.appendChild(undoButton);
+const redoButton=undoButton.cloneNode(true);redoButton.title='Redo (Ctrl+Shift+Z)';redoButton.setAttribute('aria-label','Redo');redoButton.style.transform='scaleX(-1)';redoButton.onclick=redo;tb.appendChild(redoButton);
+if(!HOST){$('captureBtn').textContent='Capture in Windows app';$('hostOnly').style.display='block';}else $('hostOnly').style.display='none';
 </script>
 </body>
 </html>

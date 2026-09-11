@@ -34,13 +34,18 @@ public partial class RegionOverlay : Window
 
         Loaded += (_, _) =>
         {
-            Dim.Width = Width; Dim.Height = Height;
-            Canvas.SetLeft(Hint, (Width - Hint.ActualWidth) / 2);
+            // WPF's virtual-screen DIPs can under-cover monitors at mixed scales.
+            // Size the actual HWND in physical pixels; PointToScreen handles conversion.
+            SetWindowPos(new WindowInteropHelper(this).Handle, IntPtr.Zero,
+                GetSystemMetrics(76), GetSystemMetrics(77), GetSystemMetrics(78), GetSystemMetrics(79), 0x0004);
+            Dim.Width = ActualWidth; Dim.Height = ActualHeight;
+            Canvas.SetLeft(Hint, (ActualWidth - Hint.ActualWidth) / 2);
             Canvas.SetTop(Hint, 40);
             if (_windowMode) Hint.Visibility = Visibility.Collapsed;
             Activate();
         };
 
+        SizeChanged += (_, _) => { Dim.Width = ActualWidth; Dim.Height = ActualHeight; };
         MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
@@ -130,6 +135,9 @@ public partial class RegionOverlay : Window
         }, IntPtr.Zero);
         return found;
     }
+
+    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 
     private const int DWMWA_CLOAKED = 14, DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 

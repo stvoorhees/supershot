@@ -7,6 +7,9 @@ public sealed class SettingsData
 {
     public string Hotkey { get; set; } = "ctrl+shift+2";
     public bool AutoCopy { get; set; }
+    public bool AutoUpdate { get; set; } = true;
+    public int CaptureDelay { get; set; }
+    public bool IncludeCursor { get; set; } = true;
     public string SaveFolder { get; set; } = "";
 }
 
