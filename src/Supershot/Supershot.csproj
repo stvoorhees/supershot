@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>Supershot</RootNamespace>
     <AssemblyName>Supershot</AssemblyName>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <StartupObject>Supershot.Program</StartupObject>
     <ApplicationIcon>..\..\assets\Supershot.ico</ApplicationIcon>
     <!-- DPI awareness is set in app.manifest (WPF-primary app); silence the WinForms-oriented nudge. -->

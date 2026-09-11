@@ -19,6 +19,7 @@ const server = http.createServer((req,res)=>{
     const page=await context.newPage(), errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.locator('#gearBtn').click();
     assert.equal(await page.locator('#themeBtn').inputValue(),'system');
     await page.emulateMedia({colorScheme:'dark'});
     await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
@@ -36,6 +37,7 @@ const server = http.createServer((req,res)=>{
     assert(await page.locator('#welcomeCapture').isVisible());ok('Empty state and disabled exports');
     await page.locator('#sampleLink').click();await page.waitForFunction(()=>!document.getElementById('saveBtn').disabled);
     assert.equal(await page.locator('[data-tab="style"]').getAttribute('aria-selected'),'true');ok('Image loading opens style inspector');
+    await page.locator('#gearBtn').click();
     await page.locator('#themeBtn').selectOption('dark');assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
     await page.reload();assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');ok('Appearance persists');
     await page.locator('#sampleLink').click();await page.waitForFunction(()=>!document.getElementById('saveBtn').disabled);

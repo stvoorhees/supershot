@@ -40,7 +40,7 @@ Requires .NET 10 SDK to build. On Windows:
 
 ```powershell
 dotnet run --project src/Supershot
-./scripts/package.ps1 -Version 0.2.3
+./scripts/package.ps1 -Version 0.2.4
 ```
 
 `artifacts/releases/` contains the installer, portable ZIP, full update package, and `releases.win.json`. Keep the app ID **Supershot**, channel **win**, and x64 architecture stable across releases. The packaging script pins Velopack 1.2.0 and downloads and installs the shared .NET 10 Desktop Runtime (x64) and WebView2 when missing. The portable ZIP requires those runtimes to be installed already. Upgrades from bundled-runtime releases may prompt to install the shared runtime before applying the update. These builds target Windows x64 (Windows ARM64 emulation is not part of the verified scope).
@@ -50,7 +50,7 @@ On macOS/Linux you can cross-build, but cannot run the Windows shell:
 ```sh
 dotnet publish src/Supershot -c Release -r win-x64 --self-contained false -p:EnableWindowsTargeting=true -o artifacts/publish
 dotnet tool restore
-dotnet tool run vpk -- '[win]' pack --packId Supershot --packVersion 0.2.3 --packDir artifacts/publish --mainExe Supershot.exe --packTitle Supershot --icon assets/Supershot.ico --framework net10.0-x64-desktop,webview2 --runtime win-x64 --channel win --outputDir artifacts/releases --skip-updates
+dotnet tool run vpk -- '[win]' pack --packId Supershot --packVersion 0.2.4 --packDir artifacts/publish --mainExe Supershot.exe --packTitle Supershot --icon assets/Supershot.ico --framework net10.0-x64-desktop,webview2 --runtime win-x64 --channel win --outputDir artifacts/releases --skip-updates
 ```
 
 ### Release workflow
