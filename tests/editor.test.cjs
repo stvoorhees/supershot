@@ -105,17 +105,15 @@ const server = http.createServer((req,res)=>{
     await app.locator('#captureBtn').click();assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='capture'&&m.mode==='Region')));ok('Native settings and capture bridge');
     await app.locator('#gearBtn').click();
     assert(!(await app.locator('#clearFolder').isVisible()));
-    assert.match(await app.locator('#saveLocationHelp').textContent(),/opens a dialog/);
     await app.locator('#chooseFolder').click();
     assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='chooseSaveFolder')));
     await app.evaluate(()=>deliver({type:'settings',value:{saveFolder:'C:\\Screenshots'}}));
     assert(await app.locator('#clearFolder').isVisible());
-    assert.match(await app.locator('#saveLocationHelp').textContent(),/directly to this folder/);
     await app.locator('#clearFolder').click();
     assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='clearSaveFolder')));
     await app.evaluate(()=>deliver({type:'settings',value:{saveFolder:''}}));
     assert(!(await app.locator('#clearFolder').isVisible()));
-    ok('Save location explains current mode and only offers reset for a configured folder');
+    ok('Save location only offers reset for a configured folder');
     await app.evaluate(()=>deliver({type:'update',state:'downloading',progress:42,message:'Downloading…',version:'0.2.0'}));
     assert(await app.locator('#checkUpdate').isDisabled());assert.equal(await app.locator('#updateProgress').getAttribute('value'),'42');
     await app.evaluate(()=>deliver({type:'update',state:'ready',progress:100,message:'Ready to restart',version:'0.2.0'}));

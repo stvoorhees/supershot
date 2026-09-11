@@ -144,7 +144,6 @@
     <p id="hotkeyWarning" class="help" hidden>That shortcut is unavailable. Choose another, or use New capture.</p>
     <div class="set-row"><label>Save location</label></div>
     <div class="set-row" style="margin-top:-6px"><span class="path" id="folderPath" aria-live="polite">No default folder</span><button class="pickbtn" style="width:auto;margin:0;padding:6px 10px" id="chooseFolder">Choose folder…</button></div>
-    <p class="help" id="saveLocationHelp">Clicking Save opens a dialog to choose a name and location.</p>
     <button class="text-btn" id="clearFolder" hidden>Remove default folder</button>
     <div class="settings-divider"></div>
     <h3>Software updates <span id="appVersion"></span></h3>
@@ -575,7 +574,6 @@ function syncSettingsUI(){ $('hotkeyWarning').hidden=settings.hotkeyAvailable!==
   $('folderPath').title=folder||'';
   $('clearFolder').hidden=!folder;
   $('chooseFolder').textContent=folder?'Change folder…':'Choose folder…';
-  $('saveLocationHelp').textContent=HOST?(folder?'Clicking Save writes a PNG directly to this folder.':'Clicking Save opens a dialog to choose a name and location.'):'Save location settings are available in the Windows app.';
   $('chooseFolder').disabled=!HOST;
 }
 $('autoCopy').onclick=()=>{ settings.autoCopy=!settings.autoCopy; syncSettingsUI(); saveSettings(); if(HOST)HOST.postMessage({type:'setAutoCopy',value:settings.autoCopy}); };
