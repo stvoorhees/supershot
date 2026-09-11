@@ -6,14 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Supershot</title>
 <style>
-  /* Supershot editor — offline, self-contained. Premium, macOS-flavored dark UI.
+  /* Supershot editor — offline, self-contained. Windows screenshot workspace.
      The WPF shell injects the capture via window.chrome.webview; standalone: drop/paste. */
   :root{
     --bg:#1d1d20; --stage:#161618; --panel:#232327; --panel-2:#2a2a30;
     --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
     --ink:#f2f3f5; --ink-2:#a0a2ab; --ink-3:#6d707a;
     --accent:#0a84ff; --accent-hi:#409cff;
-    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+    --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
     --mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Menlo,monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -120,7 +120,7 @@
     <div class="brand"><img class="logo" src="logo.png" alt="" />Supershot</div>
     <div class="tb-spacer"></div>
     <button class="quiet-btn" id="updateBadge" hidden>Update ready</button>
-    <button class="quiet-btn" id="themeBtn" title="Switch appearance">Light</button>
+    <select class="quiet-btn" id="themeBtn" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
     <button class="icon-btn" id="gearBtn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div class="wc" id="wc"><button data-w="min" title="Minimize">&#x2013;</button><button data-w="max" title="Maximize or restore">□</button><button data-w="close" title="Close">&#x2715;</button></div>
   </div>
@@ -168,7 +168,7 @@
         <div class="big">No screenshot open</div>
         <p class="welcome-copy">Capture your screen, or drop an image here to edit it.</p>
         <button class="welcome-capture" id="welcomeCapture">Capture a region <kbd id="captureKey">Ctrl+Shift+2</kbd></button>
-        <div>Paste an image with <kbd>⌘/Ctrl</kbd> + <kbd>V</kbd> · <button id="sampleLink" class="text-btn">Open sample image</button></div>
+        <div>Paste an image with <kbd>Ctrl</kbd> + <kbd>V</kbd> · <button id="sampleLink" class="text-btn">Open sample image</button></div>
       </div>
     </div>
 
@@ -591,8 +591,6 @@ if(HOST){
     else if(m.type==='exportResult'){const signature=pendingExports.get(m.requestId);if(m.success&&signature)savedSignature=signature;pendingExports.delete(m.requestId);syncDocumentState();}
     else if(m.type==='update')syncUpdate(m);
     else if(m.type==='settings'){ Object.assign(settings,m.value||{}); syncSettingsUI(); render(); } });
-  $('titlebar').addEventListener('dblclick',e=>{if(!e.target.closest('button,select,input'))HOST.postMessage({type:'max'});});
-  $('titlebar').addEventListener('mousedown',e=>{ if(!e.target.closest('button,select,input')) HOST.postMessage({type:'drag'}); });
   $('wc').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b)HOST.postMessage({type:b.dataset.w}); });
   $('openBtn').onclick=()=>HOST.postMessage({type:'open'});
   $('saveBtn').onclick=()=>sendExport('save');
@@ -701,9 +699,17 @@ $('updateBadge').onclick=()=>$('settings').classList.add('open');
 function syncUpdate(m){$('appVersion').textContent=m.version;$('updateMessage').textContent=m.message;
   $('updateProgress').hidden=m.state!=='downloading';$('updateProgress').value=m.progress;
   $('checkUpdate').disabled=['checking','downloading'].includes(m.state);$('installUpdate').hidden=m.state!=='ready';$('updateBadge').hidden=m.state!=='ready';}
-let appearance=localStorage.getItem('supershot.appearance')||'light';
-function applyTheme(){document.documentElement.dataset.theme=appearance;$('themeBtn').textContent=appearance==='light'?'Dark':'Light';$('themeBtn').setAttribute('aria-label','Switch to '+$('themeBtn').textContent.toLowerCase()+' appearance');}
-$('themeBtn').onclick=()=>{appearance=appearance==='light'?'dark':'light';localStorage.setItem('supershot.appearance',appearance);applyTheme();};applyTheme();
+const systemAppearance=window.matchMedia('(prefers-color-scheme: dark)');
+let appearance=localStorage.getItem('supershot.appearance');
+if(!['system','light','dark'].includes(appearance))appearance='system';
+function applyTheme(){
+  const theme=appearance==='system'?(systemAppearance.matches?'dark':'light'):appearance;
+  document.documentElement.dataset.theme=theme;
+  document.documentElement.style.colorScheme=theme;
+  $('themeBtn').value=appearance;
+}
+$('themeBtn').onchange=e=>{appearance=e.target.value;localStorage.setItem('supershot.appearance',appearance);applyTheme();};
+systemAppearance.addEventListener('change',applyTheme);applyTheme();
 for(const [id,label] of Object.entries({pad:'Padding',rad:'Corner radius',sh:'Shadow',strokeW:'Annotation thickness',solid:'Background color',markColor:'Annotation color'}))$(id).setAttribute('aria-label',label);
 const undoButton=document.createElement('button');undoButton.className='tool-btn';undoButton.title='Undo (Ctrl+Z)';undoButton.setAttribute('aria-label','Undo');undoButton.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 4L3 9l5 5M3 9h10a7 7 0 0 1 0 14"/></svg>';undoButton.onclick=undo;tb.appendChild(sep());tb.appendChild(undoButton);
 const redoButton=undoButton.cloneNode(true);redoButton.title='Redo (Ctrl+Shift+Z)';redoButton.setAttribute('aria-label','Redo');redoButton.style.transform='scaleX(-1)';redoButton.onclick=redo;tb.appendChild(redoButton);

@@ -6,7 +6,7 @@
         Title="Supershot" Width="1180" Height="760" MinWidth="760" MinHeight="520"
         WindowStyle="None" WindowStartupLocation="CenterScreen" Background="#f7f7f9">
   <shell:WindowChrome.WindowChrome>
-    <!-- frameless but still resizable/snappable; drag is handled from the web title bar -->
+    <!-- frameless but still resizable/snappable; WebView2 supplies the native draggable title bar -->
     <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
   </shell:WindowChrome.WindowChrome>
   <wv:WebView2 x:Name="Web" />

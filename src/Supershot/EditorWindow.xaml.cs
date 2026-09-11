@@ -48,6 +48,8 @@ public partial class EditorWindow : Window
         core.Settings.AreDefaultContextMenusEnabled = false;
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.AreDevToolsEnabled = false;
+        core.Settings.IsNonClientRegionSupportEnabled = true;
+        core.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Auto;
 
         core.NavigationStarting += (_, e) => { if (e.Uri != "https://supershot.editor/index.html") e.Cancel = true; };
         core.NewWindowRequested += (_, e) => e.Handled = true;
@@ -89,9 +91,6 @@ public partial class EditorWindow : Window
                 SendSettings();
                 SendUpdate();
                 if (_pending is not null) PostImage(_pending);
-                break;
-            case "drag":
-                try { DragMove(); } catch { /* only valid while the mouse button is down */ }
                 break;
             case "max": WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; break;
             case "min": WindowState = WindowState.Minimized; break;

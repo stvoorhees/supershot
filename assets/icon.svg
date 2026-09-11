@@ -1,13 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fcfdff"/><stop offset="1" stop-color="#dfe4ed"/></linearGradient>
-    <linearGradient id="ink" x2=".3" y2="1"><stop stop-color="#414955"/><stop offset="1" stop-color="#161b23"/></linearGradient>
-  </defs>
-  <rect x="40" y="40" width="944" height="944" rx="222" fill="url(#tile)" stroke="#c9d0db" stroke-width="8"/>
-  <rect x="52" y="52" width="920" height="920" rx="212" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="6"/>
-  <g fill="none" stroke="url(#ink)" stroke-width="66" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M386 276h-62q-48 0-48 48v62M638 276h62q48 0 48 48v62M748 638v62q0 48-48 48h-62M386 748h-62q-48 0-48-48v-62"/>
+  <rect x="40" y="40" width="944" height="944" rx="240" fill="#faf9f6" stroke="#d5d4d0" stroke-width="8"/>
+  <g fill="none" stroke="#202020" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M392 288h-64q-40 0-40 40v64m344-104h64q40 0 40 40v64m0 240v64q0 40-40 40h-64m-240 0h-64q-40 0-40-40v-64"/>
+    <rect x="432" y="432" width="160" height="160" rx="40"/>
   </g>
-  <circle cx="512" cy="512" r="94" fill="url(#ink)"/>
-  <circle cx="488" cy="488" r="25" fill="#fff" opacity=".24"/>
 </svg>
