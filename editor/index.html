@@ -142,9 +142,10 @@
       </select>
     </div>
     <p id="hotkeyWarning" class="help" hidden>That shortcut is unavailable. Choose another, or use New capture.</p>
-    <div class="set-row"><label>Save to folder</label></div>
-    <div class="set-row" style="margin-top:-6px"><span class="path" id="folderPath">Ask every time</span><button class="pickbtn" style="width:auto;margin:0;padding:6px 10px" id="chooseFolder">Choose…</button></div>
-    <button class="text-btn" id="clearFolder">Ask where to save each time</button>
+    <div class="set-row"><label>Save location</label></div>
+    <div class="set-row" style="margin-top:-6px"><span class="path" id="folderPath" aria-live="polite">No default folder</span><button class="pickbtn" style="width:auto;margin:0;padding:6px 10px" id="chooseFolder">Choose folder…</button></div>
+    <p class="help" id="saveLocationHelp">Clicking Save opens a dialog to choose a name and location.</p>
+    <button class="text-btn" id="clearFolder" hidden>Remove default folder</button>
     <div class="settings-divider"></div>
     <h3>Software updates <span id="appVersion"></span></h3>
     <div class="set-row"><label for="autoUpdate">Check automatically</label><input id="autoUpdate" type="checkbox" checked /></div>
@@ -569,7 +570,14 @@ function placeText(e,p){ const ti=$('textInput'), r=c.getBoundingClientRect();
 $('gearBtn').onclick=()=>$('settings').classList.toggle('open');
 document.addEventListener('mousedown',e=>{ if(!e.target.closest('#settings')&&!e.target.closest('#gearBtn')) $('settings').classList.remove('open'); });
 function syncSettingsUI(){ $('hotkeyWarning').hidden=settings.hotkeyAvailable!==false; $('autoCopy').classList.toggle('on',settings.autoCopy); $('autoCopy').setAttribute('aria-checked',settings.autoCopy); $('includeCursor').checked=settings.includeCursor; $('autoUpdate').checked=settings.autoUpdate; $('captureDelay').value=settings.captureDelay; $('captureKey').textContent=settings.hotkey;  $('hotkeySel').value=settings.hotkey;
-  $('folderPath').textContent=settings.saveFolder||'Ask every time'; }
+  const folder=settings.saveFolder;
+  $('folderPath').textContent=folder||'No default folder';
+  $('folderPath').title=folder||'';
+  $('clearFolder').hidden=!folder;
+  $('chooseFolder').textContent=folder?'Change folder…':'Choose folder…';
+  $('saveLocationHelp').textContent=HOST?(folder?'Clicking Save writes a PNG directly to this folder.':'Clicking Save opens a dialog to choose a name and location.'):'Save location settings are available in the Windows app.';
+  $('chooseFolder').disabled=!HOST;
+}
 $('autoCopy').onclick=()=>{ settings.autoCopy=!settings.autoCopy; syncSettingsUI(); saveSettings(); if(HOST)HOST.postMessage({type:'setAutoCopy',value:settings.autoCopy}); };
 $('hotkeySel').onchange=e=>{ settings.hotkey=e.target.value; if(HOST)HOST.postMessage({type:'setHotkey',value:settings.hotkey}); };
 $('chooseFolder').onclick=()=>{ if(HOST)HOST.postMessage({type:'chooseSaveFolder'}); };

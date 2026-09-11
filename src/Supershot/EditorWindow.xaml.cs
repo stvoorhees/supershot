@@ -146,7 +146,7 @@ public partial class EditorWindow : Window
                 break;
             case "setHotkey": AppSettings.SetHotkey(Str("value")); SendSettings(); break;
             case "chooseSaveFolder": ChooseSaveFolder(); break;
-            case "clearSaveFolder": AppSettings.Data.SaveFolder = ""; AppSettings.Save(); SendSettings(); break;
+            case "clearSaveFolder": AppSettings.Data.SaveFolder = ""; AppSettings.Save(); SendSettings(); Notify("Default folder removed. Save will ask for a location."); break;
         }
         }
         catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); Notify("That action couldn’t be completed. Please try again."); if (type is "copy" or "save") ExportFinished(Str("requestId"), false); }
@@ -186,7 +186,7 @@ public partial class EditorWindow : Window
     private void ChooseSaveFolder()
     {
         var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Choose a folder to save screenshots" };
-        if (dlg.ShowDialog() == true) { AppSettings.Data.SaveFolder = dlg.FolderName; AppSettings.Save(); SendSettings(); }
+        if (dlg.ShowDialog() == true) { AppSettings.Data.SaveFolder = dlg.FolderName; AppSettings.Save(); SendSettings(); Notify("Default save folder updated."); }
     }
 
     private void OpenImage()
