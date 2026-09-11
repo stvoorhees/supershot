@@ -44,3 +44,44 @@ button:disabled{opacity:.4;cursor:default}button:active:not(:disabled){filter:br
 .glabel{font-size:12px;font-weight:600}
 :root[data-theme=light] input[type=range]{background:#d7d6d1}
 :root{--track:#444}:root[data-theme=light]{--track:#d7d6d1}
+
+/* Explicit geometry avoids browser-default button borders shifting the switch thumb. */
+.switch{appearance:none;border:0;padding:0;width:40px;height:24px;min-width:40px;
+  background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line-2)}
+.switch::after{width:18px;height:18px;top:3px;left:3px;background:var(--ink-2);
+  box-shadow:0 1px 2px #00000020;transition:transform .15s}
+.switch.on{background:var(--accent);box-shadow:none}
+.switch.on::after{left:3px;transform:translateX(16px);background:var(--on-accent)}
+#themeBtn{appearance:none;-webkit-appearance:none;width:100px;height:32px;
+  padding:0 30px 0 12px;font-size:12px;line-height:normal;border:1px solid var(--line-2);
+  background-color:var(--panel);color:var(--ink);border-radius:8px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23777777' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center}
+#themeBtn:hover{background-color:var(--panel-2)}
+#themeBtn option{background:var(--panel);color:var(--ink)}
+
+/* Tabs, scrolling sections, and footer share one pane edge and content inset. */
+.panel{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;min-height:0}
+.inspector-tabs{position:static;flex:none;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.inspector-content{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.inspector-content .group{padding:20px;border-bottom:0;position:relative}
+.inspector-content .group::after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:1px;background:var(--line)}
+.panel .actions{position:static;flex:none;width:auto;padding:16px 20px;align-items:center}
+.panel input[type=range]{display:block;margin:0}
+.inspector-content::-webkit-scrollbar{width:8px}
+.inspector-content::-webkit-scrollbar-thumb{background:var(--line-2);border:2px solid var(--bg);border-radius:8px}
+@media(max-width:900px){
+  .inspector-tabs{padding-left:16px;padding-right:16px}
+  .inspector-content .group,.panel .actions{padding:16px}
+  .inspector-content .group::after{left:16px;right:16px}
+}
+
+/* In-app branding is a transparent mark; the Windows launcher retains its tile. */
+.logo,.welcome-icon{border-radius:0;filter:invert(1)}
+:root[data-theme=light] .logo,:root[data-theme=light] .welcome-icon{filter:none}
+
+.wc{gap:0;margin-left:4px;align-items:center}
+.wc button{width:44px;height:34px;padding:0;display:grid;place-items:center;
+  border-radius:6px;flex:none;color:var(--ink-2)}
+.wc svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1;
+  stroke-linecap:butt;stroke-linejoin:miter;pointer-events:none}

@@ -1,4 +1,5 @@
 using System.Drawing;
+using Microsoft.Win32;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -25,6 +26,7 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
         AppSettings.Load();
         _tray = new WinForms.NotifyIcon { Icon = TrayIcon(), Visible = true, Text = "Supershot" };
+        SystemEvents.UserPreferenceChanged += OnTaskbarAppearanceChanged;
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("Capture region", null, (_, _) => StartCapture(CaptureMode.Region));
         menu.Items.Add("Capture window", null, (_, _) => StartCapture(CaptureMode.Window));
@@ -129,12 +131,34 @@ public partial class App : System.Windows.Application
 
     private static Icon TrayIcon()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Tray.ico");
+        bool light = false;
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            light = key?.GetValue("SystemUsesLightTheme") is int value && value != 0;
+        }
+        catch (System.Security.SecurityException) { }
+        catch (UnauthorizedAccessException) { }
+        catch (IOException) { }
+        var path = Path.Combine(AppContext.BaseDirectory, light ? "Tray.ico" : "TrayDark.ico");
         return File.Exists(path) ? new Icon(path, 32, 32) : (Icon)SystemIcons.Application.Clone();
+    }
+
+    private void OnTaskbarAppearanceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (Dispatcher.HasShutdownStarted) return;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (_tray is null || _quitting) return;
+            var previous = _tray.Icon;
+            _tray.Icon = TrayIcon();
+            previous?.Dispose();
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemEvents.UserPreferenceChanged -= OnTaskbarAppearanceChanged;
         _updatesTimer?.Stop(); _activationWait?.Unregister(null); _activate.Dispose(); _hotkey?.Dispose();
         if (_tray is not null) { _tray.Visible = false; _tray.Icon?.Dispose(); _tray.Dispose(); }
         base.OnExit(e);

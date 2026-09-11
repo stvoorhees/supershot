@@ -85,6 +85,19 @@ const server = http.createServer((req,res)=>{
     const app=await native.newPage();app.on('pageerror',e=>errors.push(e.message));
     await app.goto(`http://127.0.0.1:${server.address().port}`);
     assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='ready')));
+    await app.evaluate(()=>deliver({type:'windowState',maximized:true}));
+    assert(await app.locator('.restore-icon').isVisible());
+    assert.equal(await app.locator('[data-w=max]').getAttribute('aria-label'),'Restore');
+    await app.locator('[data-w=max]').click();
+    assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='max')));
+    await app.evaluate(()=>deliver({type:'windowState',maximized:false}));
+    assert(await app.locator('.maximize-icon').isVisible());
+    assert(!(await app.locator('.restore-icon').isVisible()));
+    for(const action of ['min','close']){
+      await app.locator('[data-w='+action+']').click();
+      assert(await app.evaluate(action=>hostMessages.some(m=>m.type===action),action));
+    }
+    ok('Window controls send actions and reflect maximize/restore state');
     await app.evaluate(()=>deliver({type:'settings',value:{autoCopy:false,hotkey:'ctrl+shift+4',captureDelay:3,includeCursor:false,autoUpdate:false}}));
     assert.equal(await app.locator('#captureDelay').inputValue(),'3');
     await app.locator('#captureBtn').click();assert(await app.evaluate(()=>hostMessages.some(m=>m.type==='capture'&&m.mode==='Region')));ok('Native settings and capture bridge');

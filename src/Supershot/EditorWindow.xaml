@@ -9,5 +9,7 @@
     <!-- frameless but still resizable/snappable; WebView2 supplies the native draggable title bar -->
     <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
   </shell:WindowChrome.WindowChrome>
-  <wv:WebView2 x:Name="Web" />
+  <Border x:Name="WindowFrame" BorderThickness="1" BorderBrush="#d5d4d0">
+    <wv:WebView2 x:Name="Web" />
+  </Border>
 </Window>

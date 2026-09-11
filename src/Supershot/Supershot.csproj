@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>Supershot</RootNamespace>
     <AssemblyName>Supershot</AssemblyName>
-    <Version>0.2.2</Version>
+    <Version>0.2.3</Version>
     <StartupObject>Supershot.Program</StartupObject>
     <ApplicationIcon>..\..\assets\Supershot.ico</ApplicationIcon>
     <!-- DPI awareness is set in app.manifest (WPF-primary app); silence the WinForms-oriented nudge. -->
@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\assets\TrayDark.ico" Link="TrayDark.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\Tray.ico" Link="Tray.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

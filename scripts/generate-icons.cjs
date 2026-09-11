@@ -16,5 +16,6 @@ async function ico(source, sizes, destination) {
   for(const n of [16,32,48,64,128,256,512,1024])await sharp(app).resize(n,n).png().toFile(path.join(root,`assets/icon-${n}.png`));
   await ico(app,[16,20,24,32,40,48,64,128,256],path.join(root,'assets/Supershot.ico'));
   await ico(tray,[16,20,24,32,40,48,64],path.join(root,'assets/Tray.ico'));
+  await ico(path.join(root,'assets/tray-dark.svg'),[16,20,24,32,40,48,64],path.join(root,'assets/TrayDark.ico'));
   await sharp(app).resize(256,256).png().toFile(path.join(root,'editor/logo.png'));
 })();

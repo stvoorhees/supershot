@@ -1,4 +1,7 @@
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -23,6 +26,12 @@ public partial class EditorWindow : Window
     public EditorWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => SetWindowAppearance(false);
+        StateChanged += (_, _) =>
+        {
+            WindowFrame.BorderThickness = WindowState == WindowState.Maximized ? new Thickness(0) : new Thickness(1);
+            SendWindowState();
+        };
         var ico = Path.Combine(AppContext.BaseDirectory, "Supershot.ico");
         if (File.Exists(ico)) { try { Icon = BitmapFrame.Create(new Uri(ico)); } catch { } }
         Loaded += async (_, _) =>
@@ -31,6 +40,27 @@ public partial class EditorWindow : Window
             catch (Exception ex) { System.Diagnostics.Trace.WriteLine(ex); System.Windows.MessageBox.Show("The editor could not start. Install the Microsoft Edge WebView2 Runtime and reopen Supershot.", "Supershot"); }
         };
     }
+
+    private void SetWindowAppearance(bool dark)
+    {
+        var border = dark ? System.Windows.Media.Color.FromRgb(74, 74, 74)
+                          : System.Windows.Media.Color.FromRgb(213, 212, 208);
+        WindowFrame.BorderBrush = new SolidColorBrush(border);
+        Background = new SolidColorBrush(dark ? System.Windows.Media.Color.FromRgb(33, 33, 33)
+                                             : System.Windows.Media.Color.FromRgb(250, 249, 246));
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        int corners = 2; // DWMWCP_ROUND; Windows retains square corners when maximized/snapped.
+        int darkMode = dark ? 1 : 0;
+        int borderColor = border.R | (border.G << 8) | (border.B << 16);
+        DwmSetWindowAttribute(handle, 33, ref corners, sizeof(int));
+        DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int));
+        DwmSetWindowAttribute(handle, 34, ref borderColor, sizeof(int));
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     private async Task InitAsync()
     {
@@ -88,10 +118,12 @@ public partial class EditorWindow : Window
         {
             case "ready":
                 _ready = true;
+                SendWindowState();
                 SendSettings();
                 SendUpdate();
                 if (_pending is not null) PostImage(_pending);
                 break;
+            case "appearance": SetWindowAppearance(Str("value") == "dark"); break;
             case "max": WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; break;
             case "min": WindowState = WindowState.Minimized; break;
             case "close": Hide(); break;
@@ -128,6 +160,12 @@ public partial class EditorWindow : Window
     public void Notify(string message)
     {
         if (_ready) Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "notice", message }));
+    }
+
+    private void SendWindowState()
+    {
+        if (_ready) Web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(
+            new { type = "windowState", maximized = WindowState == WindowState.Maximized }));
     }
 
     private void SendUpdate()

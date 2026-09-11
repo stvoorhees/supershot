@@ -117,12 +117,16 @@
 </head>
 <body>
   <div class="titlebar" id="titlebar">
-    <div class="brand"><img class="logo" src="logo.png" alt="" />Supershot</div>
+    <div class="brand"><img class="logo" src="mark.svg" alt="" />Supershot</div>
     <div class="tb-spacer"></div>
     <button class="quiet-btn" id="updateBadge" hidden>Update ready</button>
-    <select class="quiet-btn" id="themeBtn" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <select class="quiet-btn" title="Appearance" id="themeBtn" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
     <button class="icon-btn" id="gearBtn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-    <div class="wc" id="wc"><button data-w="min" title="Minimize">&#x2013;</button><button data-w="max" title="Maximize or restore">□</button><button data-w="close" title="Close">&#x2715;</button></div>
+    <div class="wc" id="wc">
+      <button data-w="min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10"/></svg></button>
+      <button data-w="max" title="Maximize" aria-label="Maximize"><svg class="maximize-icon" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9"/></svg><svg class="restore-icon" viewBox="0 0 12 12" aria-hidden="true" hidden><path d="M3.5 3.5v-2h7v7h-2"/><rect x="1.5" y="3.5" width="7" height="7"/></svg></button>
+      <button data-w="close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m1.5 1.5 9 9m0-9-9 9"/></svg></button>
+    </div>
   </div>
 
   <div class="pop" id="settings">
@@ -164,7 +168,7 @@
       </div>
       <input id="textInput" aria-label="Annotation text" />
       <div class="drop-hint">
-        <img class="welcome-icon" src="logo.png" alt="" />
+        <img class="welcome-icon" src="mark.svg" alt="" />
         <div class="big">No screenshot open</div>
         <p class="welcome-copy">Capture your screen, or drop an image here to edit it.</p>
         <button class="welcome-capture" id="welcomeCapture">Capture a region <kbd id="captureKey">Ctrl+Shift+2</kbd></button>
@@ -174,6 +178,7 @@
 
     <aside class="panel">
       <div class="inspector-tabs" role="tablist" aria-label="Inspector"><button role="tab" data-tab="capture" aria-selected="true">Capture</button><button role="tab" data-tab="style" aria-selected="false">Style</button><button role="tab" data-tab="pointer" aria-selected="false">Pointer</button></div>
+      <div class="inspector-content">
       <div class="group capture-group" data-inspector="capture">
         <div class="glabel">Capture</div>
         <div class="seg" id="captureMode"><button data-mode="Region" class="on">Region</button><button data-mode="Window">Window</button><button data-mode="FullScreen">Display</button></div>
@@ -227,6 +232,7 @@
         <input type="color" id="markColor" value="#ff453a" style="margin-top:8px" />
       </div>
 
+      </div>
       <div class="actions">
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="copyBtn">Copy</button>
@@ -587,6 +593,7 @@ function fileName(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `
 if(HOST){
   HOST.addEventListener('message',e=>{ const m=e.data; if(!m)return;
     if(m.type==='image'&&m.data) setImage(m.data,m.cursor);
+    else if(m.type==='windowState'){const b=document.querySelector('[data-w=max]');b.title=m.maximized?'Restore':'Maximize';b.setAttribute('aria-label',b.title);b.querySelector('.maximize-icon').toggleAttribute('hidden',m.maximized);b.querySelector('.restore-icon').toggleAttribute('hidden',!m.maximized);}
     else if(m.type==='notice')notify(m.message);
     else if(m.type==='exportResult'){const signature=pendingExports.get(m.requestId);if(m.success&&signature)savedSignature=signature;pendingExports.delete(m.requestId);syncDocumentState();}
     else if(m.type==='update')syncUpdate(m);
@@ -707,6 +714,7 @@ function applyTheme(){
   document.documentElement.dataset.theme=theme;
   document.documentElement.style.colorScheme=theme;
   $('themeBtn').value=appearance;
+  if(HOST)HOST.postMessage({type:'appearance',value:theme});
 }
 $('themeBtn').onchange=e=>{appearance=e.target.value;localStorage.setItem('supershot.appearance',appearance);applyTheme();};
 systemAppearance.addEventListener('change',applyTheme);applyTheme();
